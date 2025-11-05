@@ -1,0 +1,132 @@
+2025-11-05T10:12:49.949+04:00  INFO 8668 --- [main] az.dsa.chatbot.DsaChatbotApplication     : Starting DsaChatbotApplication using Java 21.0.3 with PID 8668 (C:\Users\Ogtay Safaraliyev\Documents\workspace-spring-tool-suite-4-4.24.0.RELEASE\DsaChatbotApplication\target\classes started by Ogtay Safaraliyev in C:\Users\Ogtay Safaraliyev\Documents\workspace-spring-tool-suite-4-4.24.0.RELEASE\DsaChatbotApplication)
+2025-11-05T10:12:49.955+04:00 DEBUG 8668 --- [main] az.dsa.chatbot.DsaChatbotApplication     : Running with Spring Boot v3.1.0, Spring v6.0.9
+2025-11-05T10:12:49.956+04:00  INFO 8668 --- [main] az.dsa.chatbot.DsaChatbotApplication     : No active profile set, falling back to 1 default profile: "default"
+2025-11-05T10:12:51.578+04:00  INFO 8668 --- [main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2025-11-05T10:12:51.700+04:00  INFO 8668 --- [main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 107 ms. Found 10 JPA repository interfaces.
+2025-11-05T10:12:52.724+04:00  INFO 8668 --- [main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 8081 (http)
+2025-11-05T10:12:52.743+04:00  INFO 8668 --- [main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2025-11-05T10:12:52.743+04:00  INFO 8668 --- [main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.8]
+2025-11-05T10:12:52.990+04:00  INFO 8668 --- [main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2025-11-05T10:12:52.991+04:00  INFO 8668 --- [main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 2964 ms
+2025-11-05T10:12:53.540+04:00  INFO 8668 --- [main] o.hibernate.jpa.internal.util.LogHelper  : HHH000204: Processing PersistenceUnitInfo [name: default]
+2025-11-05T10:12:53.657+04:00  INFO 8668 --- [main] org.hibernate.Version                    : HHH000412: Hibernate ORM core version 6.2.2.Final
+2025-11-05T10:12:53.662+04:00  INFO 8668 --- [main] org.hibernate.cfg.Environment            : HHH000406: Using bytecode reflection optimizer
+2025-11-05T10:12:53.929+04:00  INFO 8668 --- [main] o.h.b.i.BytecodeProviderInitiator        : HHH000021: Bytecode provider name : bytebuddy
+2025-11-05T10:12:54.206+04:00  INFO 8668 --- [main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2025-11-05T10:12:54.240+04:00  INFO 8668 --- [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2025-11-05T10:12:54.591+04:00  INFO 8668 --- [main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@38ebc866
+2025-11-05T10:12:54.593+04:00  INFO 8668 --- [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2025-11-05T10:12:54.656+04:00  INFO 8668 --- [main] org.hibernate.orm.dialect                : HHH035001: Using dialect: org.hibernate.dialect.PostgreSQLDialect, version: org.hibernate.engine.jdbc.env.internal.JdbcEnvironmentInitiator$DialectResolutionInfoImpl@17f41739
+2025-11-05T10:12:55.168+04:00  INFO 8668 --- [main] o.h.b.i.BytecodeProviderInitiator        : HHH000021: Bytecode provider name : bytebuddy
+2025-11-05T10:12:56.701+04:00  INFO 8668 --- [main] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000490: Using JtaPlatform implementation: [org.hibernate.engine.transaction.jta.platform.internal.NoJtaPlatform]
+2025-11-05T10:12:56.819+04:00 DEBUG 8668 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.bootcamp_types 
+       alter column created_at set data type timestamp(6)
+2025-11-05T10:12:56.831+04:00 DEBUG 8668 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.bootcamp_types 
+       alter column updated_at set data type timestamp(6)
+2025-11-05T10:12:56.833+04:00 DEBUG 8668 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.bootcamps 
+       alter column created_at set data type timestamp(6)
+2025-11-05T10:12:56.836+04:00 DEBUG 8668 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.bootcamps 
+       alter column updated_at set data type timestamp(6)
+2025-11-05T10:12:56.838+04:00 DEBUG 8668 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.chat_sessions 
+       alter column conversation_history set data type JSONB
+2025-11-05T10:12:56.839+04:00 DEBUG 8668 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.chat_sessions 
+       alter column created_at set data type timestamp(6)
+2025-11-05T10:12:56.841+04:00 DEBUG 8668 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.chat_sessions 
+       alter column expires_at set data type timestamp(6)
+2025-11-05T10:12:56.846+04:00 DEBUG 8668 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.chat_sessions 
+       alter column last_activity set data type timestamp(6)
+2025-11-05T10:12:56.848+04:00 DEBUG 8668 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.chat_sessions 
+       alter column user_data set data type JSONB
+2025-11-05T10:12:56.850+04:00 DEBUG 8668 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.faq 
+       alter column answer set data type TEXT
+2025-11-05T10:12:56.861+04:00 DEBUG 8668 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.faq 
+       alter column answer_en set data type TEXT
+2025-11-05T10:12:56.863+04:00 DEBUG 8668 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.faq 
+       alter column created_at set data type timestamp(6)
+2025-11-05T10:12:56.865+04:00 DEBUG 8668 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.faq 
+       alter column question set data type TEXT
+2025-11-05T10:12:56.871+04:00 DEBUG 8668 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.faq 
+       alter column question_en set data type TEXT
+2025-11-05T10:12:56.872+04:00 DEBUG 8668 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.faq 
+       alter column updated_at set data type timestamp(6)
+2025-11-05T10:12:56.874+04:00 DEBUG 8668 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.graduates 
+       alter column created_at set data type timestamp(6)
+2025-11-05T10:12:56.876+04:00 DEBUG 8668 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.leads 
+       alter column created_at set data type timestamp(6)
+2025-11-05T10:12:56.878+04:00 DEBUG 8668 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.leads 
+       alter column message set data type TEXT
+2025-11-05T10:12:56.880+04:00 DEBUG 8668 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.trainers 
+       alter column created_at set data type timestamp(6)
+2025-11-05T10:12:56.881+04:00 DEBUG 8668 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.trainers 
+       alter column info set data type TEXT
+2025-11-05T10:12:56.883+04:00 DEBUG 8668 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.trainers 
+       alter column updated_at set data type timestamp(6)
+2025-11-05T10:12:56.884+04:00 DEBUG 8668 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.training_details 
+       alter column certificates set data type TEXT
+2025-11-05T10:12:56.886+04:00 DEBUG 8668 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.training_details 
+       alter column created_at set data type timestamp(6)
+2025-11-05T10:12:56.887+04:00 DEBUG 8668 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.training_details 
+       alter column description set data type TEXT
+2025-11-05T10:12:56.892+04:00 DEBUG 8668 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.training_details 
+       alter column for_who set data type TEXT
+2025-11-05T10:12:56.894+04:00 DEBUG 8668 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.training_details 
+       alter column information set data type TEXT
+2025-11-05T10:12:56.895+04:00 DEBUG 8668 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.training_details 
+       alter column updated_at set data type timestamp(6)
+2025-11-05T10:12:56.897+04:00 DEBUG 8668 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.training_sessions 
+       alter column created_at set data type timestamp(6)
+2025-11-05T10:12:56.898+04:00 DEBUG 8668 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.training_sessions 
+       alter column session_hour set data type time(6)
+2025-11-05T10:12:56.900+04:00 DEBUG 8668 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.training_sessions 
+       alter column updated_at set data type timestamp(6)
+2025-11-05T10:12:56.902+04:00 DEBUG 8668 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.trainings 
+       alter column created_at set data type timestamp(6)
+2025-11-05T10:12:56.904+04:00 DEBUG 8668 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.trainings 
+       alter column updated_at set data type timestamp(6)
+2025-11-05T10:12:57.030+04:00  INFO 8668 --- [main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2025-11-05T10:12:57.310+04:00  WARN 8668 --- [main] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2025-11-05T10:12:58.665+04:00  INFO 8668 --- [main] o.s.d.j.r.query.QueryEnhancerFactory     : Hibernate is in classpath; If applicable, HQL parser will be used.
+2025-11-05T10:12:59.835+04:00  INFO 8668 --- [main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 2 endpoint(s) beneath base path '/actuator'
+2025-11-05T10:13:00.008+04:00  INFO 8668 --- [main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port(s): 8081 (http) with context path ''
+2025-11-05T10:13:00.039+04:00  INFO 8668 --- [main] az.dsa.chatbot.DsaChatbotApplication     : Started DsaChatbotApplication in 10.817 seconds (process running for 12.201)
+2025-11-05T10:13:01.178+04:00  INFO 8668 --- [RMI TCP Connection(4)-127.0.0.1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2025-11-05T10:13:01.178+04:00  INFO 8668 --- [RMI TCP Connection(4)-127.0.0.1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2025-11-05T10:13:01.180+04:00  INFO 8668 --- [RMI TCP Connection(4)-127.0.0.1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 2 ms
+2025-11-05T13:03:10.716+04:00  INFO 8668 --- [RMI TCP Connection(175)-127.0.0.1] inMXBeanRegistrar$SpringApplicationAdmin : Application shutdown requested.
+2025-11-05T13:03:10.811+04:00  INFO 8668 --- [RMI TCP Connection(175)-127.0.0.1] o.apache.catalina.core.StandardService   : Stopping service [Tomcat]
+2025-11-05T13:03:10.864+04:00  INFO 8668 --- [RMI TCP Connection(175)-127.0.0.1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Destroying Spring FrameworkServlet 'dispatcherServlet'
+2025-11-05T13:03:10.934+04:00  INFO 8668 --- [RMI TCP Connection(175)-127.0.0.1] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2025-11-05T13:03:10.962+04:00  INFO 8668 --- [RMI TCP Connection(175)-127.0.0.1] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
+2025-11-05T13:03:10.971+04:00  INFO 8668 --- [RMI TCP Connection(175)-127.0.0.1] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
