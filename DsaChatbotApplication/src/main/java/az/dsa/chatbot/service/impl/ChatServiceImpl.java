@@ -6,6 +6,8 @@ import az.dsa.chatbot.dto.SessionData;
 import az.dsa.chatbot.model.Intent;
 import az.dsa.chatbot.model.Mode;
 import az.dsa.chatbot.service.ChatService;
+import az.dsa.chatbot.service.IntentService;
+import az.dsa.chatbot.service.OpenAIService;
 import az.dsa.chatbot.service.SessionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,6 +24,12 @@ public class ChatServiceImpl implements ChatService {
     
     @Autowired
     private SessionService sessionService;
+    
+    @Autowired
+    private OpenAIService openAIService;
+    
+    @Autowired
+    private IntentService intentService;
     
     // TODO: Will inject these in next steps
     // @Autowired
@@ -89,55 +97,118 @@ public class ChatServiceImpl implements ChatService {
     
     // ===== MODE HANDLERS (Skeleton) =====
     
+//    private ChatResponse handleInitialMessage(SessionData session, String message) {
+//        // TODO: Step 1.3 - Implement OpenAI normalization + intent detection
+//        // TODO: Step 2.x - Implement database search
+//        
+//        // For now: Simple keyword detection
+//        String lowerMessage = message.toLowerCase();
+//        
+//        // Greeting detection
+//        if (isGreeting(lowerMessage)) {
+//            return createResponse(session,
+//                "Salam! Data Science Academy-ə xoş gəlmisiniz! " +
+//                "Sizə necə kömək edə bilərəm?\n\n" +
+//                "• Təlimlərimiz haqqında məlumat\n" +
+//                "• Qeydiyyat\n" +
+//                "• Əlaqə");
+//        }
+//        
+//        // Contact intent detection
+//        if (isContactIntent(lowerMessage)) {
+//            session.setCurrentMode(Mode.CONTACT.getValue());
+//            session.setCurrentStep("awaiting_name");
+//            return createResponse(session,
+//                "Əlaqə üçün zəhmət olmasa ad və soyadınızı yazın");
+//        }
+//        
+//        // Consult intent detection
+//        if (isConsultIntent(lowerMessage)) {
+//            session.setCurrentMode(Mode.CONSULT.getValue());
+//            session.setCurrentStep("awaiting_experience");
+//            return createResponse(session,
+//                "Sizə uyğun təlimi seçməyə kömək edim.\n" +
+//                "Hansı sahədə təcrübəniz var? " +
+//                "(Məsələn: proqramlaşdırma, analitika, və ya yoxdur)");
+//        }
+//        
+//        // Training/course query detection
+//        if (isTrainingQuery(lowerMessage)) {
+//            // TODO: Step 2.x - Search in database
+//            return createResponse(session,
+//                "Təlimlərimiz haqqında məlumat axtarıram...\n" +
+//                "(Database search will be implemented in Step 2.x)");
+//        }
+//        
+//        // Unclear intent
+//        return createResponse(session,
+//            "Hansı sahədə sizə kömək edə bilərəm?\n\n" +
+//            "• Təlimlər haqqında məlumat\n" +
+//            "• Qeydiyyat və əlaqə\n" +
+//            "• Konsultasiya");
+//    }
+    
     private ChatResponse handleInitialMessage(SessionData session, String message) {
-        // TODO: Step 1.3 - Implement OpenAI normalization + intent detection
-        // TODO: Step 2.x - Implement database search
         
-        // For now: Simple keyword detection
-        String lowerMessage = message.toLowerCase();
+        // Step 1: Normalize text
+        String normalizedText = openAIService.normalizeText(message);
+        logger.debug("Normalized: {} -> {}", message, normalizedText);
         
-        // Greeting detection
-        if (isGreeting(lowerMessage)) {
+        // Step 2: Check if ambiguous
+        if (openAIService.isAmbiguous(normalizedText)) {
             return createResponse(session,
-                "Salam! Data Science Academy-ə xoş gəlmisiniz! " +
-                "Sizə necə kömək edə bilərəm?\n\n" +
-                "• Təlimlərimiz haqqında məlumat\n" +
-                "• Qeydiyyat\n" +
-                "• Əlaqə");
+                "Hansı sahədə sizə kömək edə bilərəm?\n\n" +
+                "• Data Analytics təlimləri\n" +
+                "• Machine Learning təlimləri\n" +
+                "• AI və Deep Learning\n" +
+                "• Qeydiyyat və əlaqə");
         }
         
-        // Contact intent detection
-        if (isContactIntent(lowerMessage)) {
-            session.setCurrentMode(Mode.CONTACT.getValue());
-            session.setCurrentStep("awaiting_name");
-            return createResponse(session,
-                "Əlaqə üçün zəhmət olmasa ad və soyadınızı yazın");
-        }
+        // Step 3: Determine intent
+        Intent intent = intentService.determineIntent(normalizedText);
+        logger.info("Detected intent: {}", intent);
         
-        // Consult intent detection
-        if (isConsultIntent(lowerMessage)) {
-            session.setCurrentMode(Mode.CONSULT.getValue());
-            session.setCurrentStep("awaiting_experience");
-            return createResponse(session,
-                "Sizə uyğun təlimi seçməyə kömək edim.\n" +
-                "Hansı sahədə təcrübəniz var? " +
-                "(Məsələn: proqramlaşdırma, analitika, və ya yoxdur)");
+        // Step 4: Route based on intent
+        switch (intent) {
+            case GREETING:
+                return createResponse(session,
+                    "Salam! Data Science Academy-ə xoş gəlmisiniz! " +
+                    "Sizə necə kömək edə bilərəm?\n\n" +
+                    "• Təlimlərimiz haqqında məlumat\n" +
+                    "• Qeydiyyat və konsultasiya\n" +
+                    "• Əlaqə");
+            
+            case CONTACT:
+                session.setCurrentMode(Mode.CONTACT.getValue());
+                session.setCurrentStep("awaiting_name");
+                return createResponse(session,
+                    "Əlaqə üçün zəhmət olmasa ad və soyadınızı yazın");
+            
+            case CONSULT:
+                session.setCurrentMode(Mode.CONSULT.getValue());
+                session.setCurrentStep("awaiting_experience");
+                return createResponse(session,
+                    "Sizə uyğun təlimi seçməyə kömək edim.\n" +
+                    "Hansı sahədə təcrübəniz var? " +
+                    "(Məsələn: proqramlaşdırma, analitika, və ya yoxdur)");
+            
+            case QUERY:
+            case TRAINER:
+                // TODO: Step 2.x - Search in database
+                return createResponse(session,
+                    "Məlumatı axtarıram...\n" +
+                    "(Database search - Step 2.x)");
+            
+            case UNCLEAR:
+            default:
+                return createResponse(session,
+                    "Üzr istəyirik, məqsədinizi tam başa düşə bilmədim. " +
+                    "Zəhmət olmasa daha konkret sual verin.\n\n" +
+                    "Məsələn:\n" +
+                    "• Python təlimi haqqında məlumat\n" +
+                    "• Qeydiyyat üçün əlaqə\n" +
+                    "• Təlim qiymətləri");
         }
-        
-        // Training/course query detection
-        if (isTrainingQuery(lowerMessage)) {
-            // TODO: Step 2.x - Search in database
-            return createResponse(session,
-                "Təlimlərimiz haqqında məlumat axtarıram...\n" +
-                "(Database search will be implemented in Step 2.x)");
-        }
-        
-        // Unclear intent
-        return createResponse(session,
-            "Hansı sahədə sizə kömək edə bilərəm?\n\n" +
-            "• Təlimlər haqqında məlumat\n" +
-            "• Qeydiyyat və əlaqə\n" +
-            "• Konsultasiya");
     }
     
     private ChatResponse handleContactMode(SessionData session, String message) {
