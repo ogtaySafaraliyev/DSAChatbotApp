@@ -4,6 +4,8 @@ import az.dsa.chatbot.service.OpenAIService;
 import com.theokanning.openai.completion.chat.ChatCompletionRequest;
 import com.theokanning.openai.completion.chat.ChatMessage;
 import com.theokanning.openai.completion.chat.ChatMessageRole;
+import com.theokanning.openai.service.OpenAiService;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,7 +20,7 @@ public class OpenAIServiceImpl implements OpenAIService {
     
     private static final Logger logger = LoggerFactory.getLogger(OpenAIServiceImpl.class);
     
-    @Autowired
+    @Autowired(required = false)
     private com.theokanning.openai.service.OpenAiService openAiService;
     
     @Value("${openai.model:gpt-4o-mini}")
