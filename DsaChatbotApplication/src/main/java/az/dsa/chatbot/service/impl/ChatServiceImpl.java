@@ -2,12 +2,17 @@ package az.dsa.chatbot.service.impl;
 
 import az.dsa.chatbot.dto.ChatRequest;
 import az.dsa.chatbot.dto.ChatResponse;
+import az.dsa.chatbot.dto.SearchResult;
 import az.dsa.chatbot.dto.SessionData;
+import az.dsa.chatbot.entity.Faq;
+import az.dsa.chatbot.entity.Text;
+import az.dsa.chatbot.entity.Training;
 import az.dsa.chatbot.model.Intent;
 import az.dsa.chatbot.model.Mode;
 import az.dsa.chatbot.service.ChatService;
 import az.dsa.chatbot.service.IntentService;
 import az.dsa.chatbot.service.OpenAIService;
+import az.dsa.chatbot.service.SearchService;
 import az.dsa.chatbot.service.SessionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,6 +35,9 @@ public class ChatServiceImpl implements ChatService {
     
     @Autowired
     private IntentService intentService;
+    
+    @Autowired
+    private SearchService searchService;
     
     // TODO: Will inject these in next steps
     // @Autowired
@@ -194,10 +202,7 @@ public class ChatServiceImpl implements ChatService {
             
             case QUERY:
             case TRAINER:
-                // TODO: Step 2.x - Search in database
-                return createResponse(session,
-                    "Məlumatı axtarıram...\n" +
-                    "(Database search - Step 2.x)");
+                return handleQueryIntent(session, normalizedText);
             
             case UNCLEAR:
             default:
@@ -210,6 +215,159 @@ public class ChatServiceImpl implements ChatService {
                     "• Təlim qiymətləri");
         }
     }
+    
+    // ******************
+    
+    private ChatResponse handleQueryIntent(SessionData session, String query) {
+        logger.info("Handling query: {}", query);
+        
+        // Try fuzzy search first (better for typos)
+        List<SearchResult> results = searchService.fuzzySearch(query, 3);
+        
+        if (results.isEmpty()) {
+            return createResponse(session,
+                "Bu məlumatı əməkdaşlarımızdan öyrənə bilərik. " +
+                "Əlaqə: 051 341 43 40 və ya info@dsa.az\n\n" +
+                "Başqa sualınız varmı?");
+        }
+        
+        // Log search results for debugging
+        for (SearchResult result : results) {
+            logger.debug("Result: {} - {} (score: {})", 
+                        result.getSource(), 
+                        result.getTitle(), 
+                        result.getRelevanceScore());
+        }
+        
+        // Get the best result
+        SearchResult bestResult = results.get(0);
+        
+        // Format response based on source
+        String formattedResponse = formatSearchResultResponse(bestResult, query);
+        
+        // Add additional results if available
+        if (results.size() > 1) {
+            formattedResponse += "\n\n📚 Digər uyğun təlimlər:";
+            for (int i = 1; i < Math.min(results.size(), 3); i++) {
+                SearchResult result = results.get(i);
+                formattedResponse += String.format("\n• %s", result.getTitle());
+            }
+            formattedResponse += "\n\nDaha ətraflı məlumat üçün konkret təlim adını yaza bilərsiniz.";
+        }
+        
+        return createResponse(session, formattedResponse);
+    }
+    
+    private String formatSearchResultResponse(SearchResult result, String query) {
+        // Prepare raw data for OpenAI
+        String rawData = buildRawData(result);
+        
+        // Format with OpenAI
+        try {
+            String formatted = openAIService.formatResponse(rawData, query);
+            return formatted;
+        } catch (Exception e) {
+            logger.error("Error formatting response with OpenAI: {}", e.getMessage());
+            // Fallback to manual formatting
+            return formatManually(result);
+        }
+    }
+    
+
+private String buildRawData(SearchResult result) {
+    StringBuilder sb = new StringBuilder();
+    
+    if ("FAQ".equals(result.getSource()) && result.getRawData() instanceof Faq) {
+        Faq faq = (Faq) result.getRawData();
+        sb.append("Sual: ").append(faq.getQuestion()).append("\n");
+        sb.append("Cavab: ").append(faq.getAnswer());
+        
+    } else if ("TEXT".equals(result.getSource()) && result.getRawData() instanceof Text) {
+        Text text = (Text) result.getRawData();
+        sb.append("Təlim: ").append(text.getTitle()).append("\n\n");
+        
+        if (text.getDescription() != null && !text.getDescription().isEmpty()) {
+            sb.append("Təsvir: ").append(text.getDescription()).append("\n\n");
+        }
+        
+        if (text.getMoney() != null) {
+            sb.append("Qiymət: ").append(text.getMoney()).append(" AZN\n");
+        }
+        
+        if (text.getInformation() != null && !text.getInformation().isEmpty()) {
+            // Limit information length
+            String info = text.getInformation();
+            if (info.length() > 800) {
+                info = info.substring(0, 800) + "...";
+            }
+            sb.append("\nƏtraflı məlumat:\n").append(info);
+        }
+        
+    } else if ("TRAINING".equals(result.getSource()) && result.getRawData() instanceof Training) {
+        Training training = (Training) result.getRawData();
+        sb.append("Təlim: ").append(training.getTitle()).append("\n");
+        sb.append("Aktiv: ").append(training.getIsActive() ? "Bəli" : "Xeyr").append("\n");
+        
+        // Find corresponding Text for details
+        // (will implement in next step if needed)
+    }
+    
+    return sb.toString();
+}
+
+private String formatManually(SearchResult result) {
+    StringBuilder response = new StringBuilder();
+    
+    if ("FAQ".equals(result.getSource()) && result.getRawData() instanceof Faq) {
+        Faq faq = (Faq) result.getRawData();
+        response.append("✅ ").append(faq.getAnswer());
+        
+    } else if ("TEXT".equals(result.getSource()) && result.getRawData() instanceof Text) {
+        Text text = (Text) result.getRawData();
+        response.append("📚 **").append(text.getTitle()).append("**\n\n");
+        
+        if (text.getDescription() != null) {
+            response.append(text.getDescription()).append("\n\n");
+        }
+        
+        if (text.getMoney() != null) {
+            response.append("💰 Qiymət: ").append(text.getMoney()).append(" AZN");
+        }
+        
+    } else if ("TRAINING".equals(result.getSource())) {
+        response.append("📚 ").append(result.getTitle());
+    }
+    
+    return response.toString();
+}
+
+    private String formatSearchResult(SearchResult result) {
+        StringBuilder sb = new StringBuilder();
+        
+        sb.append("Mənbə: ").append(result.getSource()).append("\n");
+        sb.append("Başlıq: ").append(result.getTitle()).append("\n");
+        sb.append("Məzmun: ").append(result.getContent()).append("\n");
+        
+        // Add specific data based on source
+        if ("FAQ".equals(result.getSource()) && result.getRawData() instanceof Faq) {
+            Faq faq = (Faq) result.getRawData();
+            sb.append("Cavab: ").append(faq.getAnswer());
+        } else if ("TEXT".equals(result.getSource()) && result.getRawData() instanceof Text) {
+            Text text = (Text) result.getRawData();
+            if (text.getMoney() != null) {
+                sb.append("Qiymət: ").append(text.getMoney()).append(" AZN\n");
+            }
+            if (text.getInformation() != null) {
+                sb.append("Ətraflı: ").append(text.getInformation().substring(0, 
+                    Math.min(500, text.getInformation().length())));
+            }
+        }
+        
+        return sb.toString();
+    }  
+    
+    //                *****************
+    
     
     private ChatResponse handleContactMode(SessionData session, String message) {
         // TODO: Step 3.1 - Full implementation

@@ -29,4 +29,22 @@ public interface SearchService {
      * Calculate relevance score
      */
     double calculateRelevance(String query, String content);
+    
+    //new ones ******
+    
+    /**
+     * Search in Training table
+     */
+    List<SearchResult> searchTraining(String query);
+
+    /**
+     * Search with fuzzy matching for typos
+     */
+    List<SearchResult> fuzzySearch(String query, int limit);
+
+    /**
+     * Search by price range
+     */
+    List<SearchResult> searchByPriceRange(Integer minPrice, Integer maxPrice);
+    
 }

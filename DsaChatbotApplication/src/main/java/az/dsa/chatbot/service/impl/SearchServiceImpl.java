@@ -3,9 +3,13 @@ package az.dsa.chatbot.service.impl;
 import az.dsa.chatbot.dto.SearchResult;
 import az.dsa.chatbot.entity.Faq;
 import az.dsa.chatbot.entity.Text;
+import az.dsa.chatbot.entity.Training;
 import az.dsa.chatbot.repository.FaqRepository;
 import az.dsa.chatbot.repository.TextRepository;
+import az.dsa.chatbot.repository.TrainingRepository;
 import az.dsa.chatbot.service.SearchService;
+import az.dsa.chatbot.util.FuzzyMatcher;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,216 +20,368 @@ import java.util.stream.Collectors;
 
 @Service
 public class SearchServiceImpl implements SearchService {
-    
-    private static final Logger logger = LoggerFactory.getLogger(SearchServiceImpl.class);
-    
-    @Autowired
-    private FaqRepository faqRepository;
-    
-    @Autowired
-    private TextRepository textRepository;
-    
-    // Common stop words in Azerbaijani
-    private static final Set<String> STOP_WORDS = Set.of(
-        "və", "ilə", "üçün", "bir", "bu", "o", "ki", "nə", 
-        "necə", "hansı", "haqqında", "üzrə", "kimi", "da", "də"
-    );
-    
-    @Override
-    public List<SearchResult> searchFAQ(String query) {
-        if (query == null || query.trim().isEmpty()) {
-            return Collections.emptyList();
-        }
-        
-        logger.debug("Searching FAQ for: {}", query);
-        
-        List<String> keywords = extractKeywords(query);
-        List<SearchResult> results = new ArrayList<>();
-        
-        // Search for each keyword
-        for (String keyword : keywords) {
-            List<Faq> faqs = faqRepository.searchByKeyword(keyword);
-            
-            for (Faq faq : faqs) {
-                // Calculate relevance score
-                String searchableContent = faq.getQuestion() + " " + faq.getAnswer();
-                double score = calculateRelevance(query, searchableContent);
-                
-                SearchResult result = new SearchResult();
-                result.setSource("FAQ");
-                result.setId(faq.getId());
-                result.setTitle(faq.getQuestion());
-                result.setContent(faq.getAnswer());
-                result.setRelevanceScore(score);
-                result.setRawData(faq);
-                
-                results.add(result);
-            }
-        }
-        
-        // Remove duplicates and sort by relevance
-        List<SearchResult> uniqueResults = results.stream()
-                .collect(Collectors.toMap(
-                    r -> r.getId(),
-                    r -> r,
-                    (existing, replacement) -> 
-                        existing.getRelevanceScore() > replacement.getRelevanceScore() 
-                            ? existing : replacement
-                ))
-                .values()
-                .stream()
-                .sorted((a, b) -> Double.compare(b.getRelevanceScore(), a.getRelevanceScore()))
-                .collect(Collectors.toList());
-        
-        logger.debug("Found {} unique FAQ results", uniqueResults.size());
-        return uniqueResults;
-    }
-    
-    @Override
-    public List<SearchResult> searchText(String query) {
-        if (query == null || query.trim().isEmpty()) {
-            return Collections.emptyList();
-        }
-        
-        logger.debug("Searching Text for: {}", query);
-        
-        List<String> keywords = extractKeywords(query);
-        List<SearchResult> results = new ArrayList<>();
-        
-        for (String keyword : keywords) {
-            List<Text> texts = textRepository.searchByKeyword(keyword);
-            
-            for (Text text : texts) {
-                // Calculate relevance score
-                String searchableContent = text.getTitle() + " " + 
-                                          text.getDescription() + " " + 
-                                          text.getInformation();
-                double score = calculateRelevance(query, searchableContent);
-                
-                SearchResult result = new SearchResult();
-                result.setSource("TEXT");
-                result.setId(text.getId());
-                result.setTitle(text.getTitle());
-                result.setContent(text.getDescription()); // Use description as preview
-                result.setRelevanceScore(score);
-                result.setRawData(text);
-                
-                results.add(result);
-            }
-        }
-        
-        // Remove duplicates and sort
-        List<SearchResult> uniqueResults = results.stream()
-                .collect(Collectors.toMap(
-                    r -> r.getId(),
-                    r -> r,
-                    (existing, replacement) -> 
-                        existing.getRelevanceScore() > replacement.getRelevanceScore() 
-                            ? existing : replacement
-                ))
-                .values()
-                .stream()
-                .sorted((a, b) -> Double.compare(b.getRelevanceScore(), a.getRelevanceScore()))
-                .collect(Collectors.toList());
-        
-        logger.debug("Found {} unique Text results", uniqueResults.size());
-        return uniqueResults;
-    }
-    
-    @Override
-    public List<SearchResult> searchAll(String query, int limit) {
-        logger.debug("Searching all tables for: {}", query);
-        
-        List<SearchResult> allResults = new ArrayList<>();
-        
-        // Search in FAQ
-        allResults.addAll(searchFAQ(query));
-        
-        // Search in Text
-        allResults.addAll(searchText(query));
-        
-        // Sort by relevance and limit
-        List<SearchResult> topResults = allResults.stream()
-                .sorted((a, b) -> Double.compare(b.getRelevanceScore(), a.getRelevanceScore()))
-                .limit(limit)
-                .collect(Collectors.toList());
-        
-        logger.info("Found {} total results, returning top {}", 
-                   allResults.size(), topResults.size());
-        
-        return topResults;
-    }
-    
-    @Override
-    public List<String> extractKeywords(String query) {
-        if (query == null || query.trim().isEmpty()) {
-            return Collections.emptyList();
-        }
-        
-        // Normalize and split
-        String normalized = query.toLowerCase()
-                .replaceAll("[.,!?;:]", " ")
-                .trim();
-        
-        String[] words = normalized.split("\\s+");
-        
-        // Filter stop words and short words
-        List<String> keywords = Arrays.stream(words)
-                .filter(word -> word.length() > 2)
-                .filter(word -> !STOP_WORDS.contains(word))
-                .distinct()
-                .collect(Collectors.toList());
-        
-        logger.debug("Extracted keywords: {}", keywords);
-        return keywords;
-    }
-    
-    @Override
-    public double calculateRelevance(String query, String content) {
-        if (query == null || content == null) {
-            return 0.0;
-        }
-        
-        String queryLower = query.toLowerCase();
-        String contentLower = content.toLowerCase();
-        
-        // Extract keywords from query
-        List<String> keywords = extractKeywords(query);
-        if (keywords.isEmpty()) {
-            return 0.0;
-        }
-        
-        double score = 0.0;
-        
-        // Exact phrase match (highest score)
-        if (contentLower.contains(queryLower)) {
-            score += 10.0;
-        }
-        
-        // Count keyword matches
-        int matchCount = 0;
-        for (String keyword : keywords) {
-            if (contentLower.contains(keyword)) {
-                matchCount++;
-                
-                // Bonus for title match
-                if (content.length() < 200 && contentLower.startsWith(keyword)) {
-                    score += 3.0;
-                } else {
-                    score += 2.0;
-                }
-            }
-        }
-        
-        // Keyword coverage ratio
-        double coverage = (double) matchCount / keywords.size();
-        score += coverage * 5.0;
-        
-        // Bonus for multiple keyword matches
-        if (matchCount > 1) {
-            score += matchCount * 1.5;
-        }
-        
-        return score;
-    }
+
+	private static final Logger logger = LoggerFactory.getLogger(SearchServiceImpl.class);
+
+	@Autowired
+	private FaqRepository faqRepository;
+
+	@Autowired
+	private TextRepository textRepository;
+
+	@Autowired
+	private TrainingRepository trainingRepository;
+
+	@Autowired
+	private FuzzyMatcher fuzzyMatcher;
+
+	// Common stop words in Azerbaijani
+	private static final Set<String> STOP_WORDS = Set.of("və", "ilə", "üçün", "bir", "bu", "o", "ki", "nə", "necə",
+			"hansı", "haqqında", "üzrə", "kimi", "da", "də");
+
+	@Override
+	public List<SearchResult> searchFAQ(String query) {
+		if (query == null || query.trim().isEmpty()) {
+			return Collections.emptyList();
+		}
+
+		logger.debug("Searching FAQ for: {}", query);
+
+		List<String> keywords = extractKeywords(query);
+		List<SearchResult> results = new ArrayList<>();
+
+		// Search for each keyword
+		for (String keyword : keywords) {
+			List<Faq> faqs = faqRepository.searchByKeyword(keyword);
+
+			for (Faq faq : faqs) {
+				// Calculate relevance score
+				String searchableContent = faq.getQuestion() + " " + faq.getAnswer();
+				double score = calculateRelevance(query, searchableContent);
+
+				SearchResult result = new SearchResult();
+				result.setSource("FAQ");
+				result.setId(faq.getId());
+				result.setTitle(faq.getQuestion());
+				result.setContent(faq.getAnswer());
+				result.setRelevanceScore(score);
+				result.setRawData(faq);
+
+				results.add(result);
+			}
+		}
+
+		// Remove duplicates and sort by relevance
+		List<SearchResult> uniqueResults = results.stream().collect(Collectors.toMap(r -> r.getId(), r -> r,
+				(existing, replacement) -> existing.getRelevanceScore() > replacement.getRelevanceScore() ? existing
+						: replacement))
+				.values().stream().sorted((a, b) -> Double.compare(b.getRelevanceScore(), a.getRelevanceScore()))
+				.collect(Collectors.toList());
+
+		logger.debug("Found {} unique FAQ results", uniqueResults.size());
+		return uniqueResults;
+	}
+
+	@Override
+	public List<SearchResult> searchText(String query) {
+		if (query == null || query.trim().isEmpty()) {
+			return Collections.emptyList();
+		}
+
+		logger.debug("Searching Text for: {}", query);
+
+		List<String> keywords = extractKeywords(query);
+		List<SearchResult> results = new ArrayList<>();
+
+		for (String keyword : keywords) {
+			List<Text> texts = textRepository.searchByKeyword(keyword);
+
+			for (Text text : texts) {
+				// Calculate relevance score
+				String searchableContent = text.getTitle() + " " + text.getDescription() + " " + text.getInformation();
+				double score = calculateRelevance(query, searchableContent);
+
+				SearchResult result = new SearchResult();
+				result.setSource("TEXT");
+				result.setId(text.getId());
+				result.setTitle(text.getTitle());
+				result.setContent(text.getDescription()); // Use description as preview
+				result.setRelevanceScore(score);
+				result.setRawData(text);
+
+				results.add(result);
+			}
+		}
+
+		// Remove duplicates and sort
+		List<SearchResult> uniqueResults = results.stream().collect(Collectors.toMap(r -> r.getId(), r -> r,
+				(existing, replacement) -> existing.getRelevanceScore() > replacement.getRelevanceScore() ? existing
+						: replacement))
+				.values().stream().sorted((a, b) -> Double.compare(b.getRelevanceScore(), a.getRelevanceScore()))
+				.collect(Collectors.toList());
+
+		logger.debug("Found {} unique Text results", uniqueResults.size());
+		return uniqueResults;
+	}
+
+	@Override
+	public List<SearchResult> searchAll(String query, int limit) {
+		logger.debug("Searching all tables for: {}", query);
+
+		List<SearchResult> allResults = new ArrayList<>();
+
+		// Search in FAQ
+		allResults.addAll(searchFAQ(query));
+
+		// Search in Text
+		allResults.addAll(searchText(query));
+
+		// Search in Training
+		allResults.addAll(searchTraining(query));
+
+		// Sort by relevance and limit
+		List<SearchResult> topResults = allResults.stream()
+				.sorted((a, b) -> Double.compare(b.getRelevanceScore(), a.getRelevanceScore())).limit(limit)
+				.collect(Collectors.toList());
+
+		logger.info("Found {} total results, returning top {}", allResults.size(), topResults.size());
+
+		return topResults;
+	}
+
+	@Override
+	public List<String> extractKeywords(String query) {
+		if (query == null || query.trim().isEmpty()) {
+			return Collections.emptyList();
+		}
+
+		// Normalize and split
+		String normalized = query.toLowerCase().replaceAll("[.,!?;:]", " ").trim();
+
+		String[] words = normalized.split("\\s+");
+
+		// Filter stop words and short words
+		List<String> keywords = Arrays.stream(words).filter(word -> word.length() > 2)
+				.filter(word -> !STOP_WORDS.contains(word)).distinct().collect(Collectors.toList());
+
+		logger.debug("Extracted keywords: {}", keywords);
+		return keywords;
+	}
+
+	// updates on calculateRelevance method after phase 2.2
+	@Override
+	public double calculateRelevance(String query, String content) {
+		if (query == null || content == null) {
+			return 0.0;
+		}
+
+		String queryLower = query.toLowerCase();
+		String contentLower = content.toLowerCase();
+
+		// Extract keywords from query
+		List<String> keywords = extractKeywords(query);
+		if (keywords.isEmpty()) {
+			return 0.0;
+		}
+
+		double score = 0.0;
+
+		// 1. Exact phrase match (highest score)
+		if (contentLower.contains(queryLower)) {
+			score += 15.0;
+		}
+
+		// 2. Count keyword matches
+		int matchCount = 0;
+		int positionScore = 0;
+
+		for (String keyword : keywords) {
+			if (contentLower.contains(keyword)) {
+				matchCount++;
+
+				// Bonus for position (earlier = better)
+				int position = contentLower.indexOf(keyword);
+				if (position >= 0) {
+					if (position == 0) {
+						positionScore += 5; // Starts with keyword
+					} else if (position < 50) {
+						positionScore += 3; // Near beginning
+					} else {
+						positionScore += 1; // Somewhere in content
+					}
+				}
+			} else {
+				// Try fuzzy matching for this keyword
+				String[] contentWords = contentLower.split("\\s+");
+				for (String word : contentWords) {
+					double similarity = fuzzyMatcher.similarity(keyword, word);
+					if (similarity >= 0.7) { // 70% similar
+						matchCount++;
+						score += similarity * 2; // Partial credit
+						break;
+					}
+				}
+			}
+		}
+
+		score += positionScore;
+
+		// 3. Keyword coverage ratio
+		double coverage = (double) matchCount / keywords.size();
+		score += coverage * 8.0;
+
+		// 4. Bonus for multiple keyword matches
+		if (matchCount > 1) {
+			score += matchCount * 2.0;
+		}
+
+		// 5. Bonus for all keywords matched
+		if (matchCount == keywords.size()) {
+			score += 5.0;
+		}
+
+		return score;
+	}
+
+	// methods after phase 2.2 **************
+
+	@Override
+	public List<SearchResult> searchTraining(String query) {
+		if (query == null || query.trim().isEmpty()) {
+			return Collections.emptyList();
+		}
+
+		logger.debug("Searching Training for: {}", query);
+
+		// Correct common typos first
+		String corrected = fuzzyMatcher.correctCommonTypos(query);
+
+		List<String> keywords = extractKeywords(corrected);
+		List<SearchResult> results = new ArrayList<>();
+
+		for (String keyword : keywords) {
+			List<Training> trainings = trainingRepository.searchByKeyword(keyword);
+
+			for (Training training : trainings) {
+				// Only show active trainings
+				if (training.getIsActive() == null || !training.getIsActive()) {
+					continue;
+				}
+
+				// Calculate relevance
+				String searchableContent = training.getTitle();
+				double score = calculateRelevance(query, searchableContent);
+
+				// Bonus for exact training name match
+				if (searchableContent.toLowerCase().contains(keyword.toLowerCase())) {
+					score += 5.0;
+				}
+
+				SearchResult result = new SearchResult();
+				result.setSource("TRAINING");
+				result.setId(training.getId());
+				result.setTitle(training.getTitle());
+				result.setContent("Təlim ID: " + training.getId());
+				result.setRelevanceScore(score);
+				result.setRawData(training);
+
+				results.add(result);
+			}
+		}
+
+		// Remove duplicates and sort
+		List<SearchResult> uniqueResults = results.stream().collect(Collectors.toMap(r -> r.getId(), r -> r,
+				(existing, replacement) -> existing.getRelevanceScore() > replacement.getRelevanceScore() ? existing
+						: replacement))
+				.values().stream().sorted((a, b) -> Double.compare(b.getRelevanceScore(), a.getRelevanceScore()))
+				.collect(Collectors.toList());
+
+		logger.debug("Found {} unique Training results", uniqueResults.size());
+		return uniqueResults;
+	}
+
+	@Override
+	public List<SearchResult> fuzzySearch(String query, int limit) {
+		logger.debug("Fuzzy searching for: {}", query);
+
+		// Step 1: Correct common typos
+		String corrected = fuzzyMatcher.correctCommonTypos(query);
+
+		// Step 2: Regular search with corrected query
+		List<SearchResult> results = searchAll(corrected, limit * 2);
+
+		// Step 3: If not enough results, try fuzzy matching
+		if (results.size() < limit) {
+			List<String> keywords = extractKeywords(query);
+
+			for (String keyword : keywords) {
+				// Try fuzzy matching against all training titles
+				List<Training> allTrainings = trainingRepository.findAllActive();
+
+				for (Training training : allTrainings) {
+					// Check if already in results
+					boolean alreadyExists = results.stream()
+							.anyMatch(r -> r.getId().equals(training.getId()) && "TRAINING".equals(r.getSource()));
+
+					if (alreadyExists)
+						continue;
+
+					// Check fuzzy similarity
+					double similarity = fuzzyMatcher.similarity(keyword, training.getTitle());
+
+					if (similarity >= 0.6) { // 60% similarity threshold
+						SearchResult result = new SearchResult();
+						result.setSource("TRAINING");
+						result.setId(training.getId());
+						result.setTitle(training.getTitle());
+						result.setContent("Fuzzy match");
+						result.setRelevanceScore(similarity * 10); // Convert to 0-10 scale
+						result.setRawData(training);
+
+						results.add(result);
+					}
+				}
+			}
+		}
+
+		// Sort and limit
+		List<SearchResult> topResults = results.stream()
+				.sorted((a, b) -> Double.compare(b.getRelevanceScore(), a.getRelevanceScore())).limit(limit)
+				.collect(Collectors.toList());
+
+		logger.debug("Fuzzy search returned {} results", topResults.size());
+		return topResults;
+	}
+
+	@Override
+	public List<SearchResult> searchByPriceRange(Integer minPrice, Integer maxPrice) {
+		logger.debug("Searching by price range: {} - {}", minPrice, maxPrice);
+
+		List<Text> texts = textRepository.findAll();
+		List<SearchResult> results = new ArrayList<>();
+
+		for (Text text : texts) {
+			if (text.getMoney() == null)
+				continue;
+
+			boolean inRange = (minPrice == null || text.getMoney() >= minPrice)
+					&& (maxPrice == null || text.getMoney() <= maxPrice);
+
+			if (inRange) {
+				SearchResult result = new SearchResult();
+				result.setSource("TEXT");
+				result.setId(text.getId());
+				result.setTitle(text.getTitle());
+				result.setContent(String.format("Qiymət: %d AZN", text.getMoney()));
+				result.setRelevanceScore(5.0);
+				result.setRawData(text);
+
+				results.add(result);
+			}
+		}
+
+		logger.debug("Found {} results in price range", results.size());
+		return results;
+	}
+
 }
