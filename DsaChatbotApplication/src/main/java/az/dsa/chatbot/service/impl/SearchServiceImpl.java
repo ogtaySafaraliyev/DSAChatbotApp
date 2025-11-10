@@ -1,5 +1,6 @@
 package az.dsa.chatbot.service.impl;
 
+import az.dsa.chatbot.dto.SearchFilters;
 import az.dsa.chatbot.dto.SearchResult;
 import az.dsa.chatbot.entity.Faq;
 import az.dsa.chatbot.entity.Text;
@@ -9,6 +10,7 @@ import az.dsa.chatbot.repository.TextRepository;
 import az.dsa.chatbot.repository.TrainingRepository;
 import az.dsa.chatbot.service.SearchService;
 import az.dsa.chatbot.util.FuzzyMatcher;
+import az.dsa.chatbot.util.TrainingTextMapper;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,6 +36,29 @@ public class SearchServiceImpl implements SearchService {
 
 	@Autowired
 	private FuzzyMatcher fuzzyMatcher;
+
+	@Autowired
+	private TrainingTextMapper trainingTextMapper;
+
+	// Category keywords mapping
+	private static final Map<String, List<String>> CATEGORY_KEYWORDS = new HashMap<>();
+
+	static {
+		CATEGORY_KEYWORDS.put("Data Analytics",
+				Arrays.asList("analytics", "analitika", "tableau", "power bi", "excel", "sql", "spss"));
+
+		CATEGORY_KEYWORDS.put("Machine Learning",
+				Arrays.asList("machine learning", "ml", "maşın öyrənməsi", "python machine", "r machine"));
+
+		CATEGORY_KEYWORDS.put("Deep Learning",
+				Arrays.asList("deep learning", "neural", "nlp", "computer vision", "transformers", "ai"));
+
+		CATEGORY_KEYWORDS.put("Data Engineering",
+				Arrays.asList("engineering", "sql", "database", "databaza", "pl/sql", "t-sql", "warehouse"));
+
+		CATEGORY_KEYWORDS.put("AI Development",
+				Arrays.asList("frontend", "backend", "django", "react", "development", "n8n"));
+	}
 
 	// Common stop words in Azerbaijani
 	private static final Set<String> STOP_WORDS = Set.of("və", "ilə", "üçün", "bir", "bu", "o", "ki", "nə", "necə",
@@ -382,6 +407,212 @@ public class SearchServiceImpl implements SearchService {
 
 		logger.debug("Found {} results in price range", results.size());
 		return results;
+	}
+
+	// updates after phase 2.3
+
+	@Override
+	public List<SearchResult> searchByCategory(String category) {
+		if (category == null || category.trim().isEmpty()) {
+			return Collections.emptyList();
+		}
+
+		logger.debug("Searching by category: {}", category);
+
+		List<String> keywords = CATEGORY_KEYWORDS.getOrDefault(category, Collections.singletonList(category));
+
+		List<SearchResult> results = new ArrayList<>();
+
+		for (String keyword : keywords) {
+			results.addAll(searchAll(keyword, 20));
+		}
+
+		// Remove duplicates and sort
+		List<SearchResult> uniqueResults = results.stream().collect(Collectors.toMap(
+				r -> r.getSource() + "_" + r.getId(), r -> r,
+				(existing, replacement) -> existing.getRelevanceScore() > replacement.getRelevanceScore() ? existing
+						: replacement))
+				.values().stream().sorted((a, b) -> Double.compare(b.getRelevanceScore(), a.getRelevanceScore()))
+				.collect(Collectors.toList());
+
+		logger.debug("Found {} results for category: {}", uniqueResults.size(), category);
+		return uniqueResults;
+	}
+
+	@Override
+	public List<SearchResult> getPopularTrainings(int limit) {
+		logger.debug("Getting popular trainings (limit: {})", limit);
+
+		List<Training> activeTrainings = trainingRepository.findAllActive();
+		List<SearchResult> results = new ArrayList<>();
+
+		// Popular training IDs (based on order field or manually defined)
+		List<Long> popularIds = Arrays.asList(5L, 4L, 14L, 8L, 1L); // Excel, Python, ML, Tableau, T-SQL
+
+		for (Long trainingId : popularIds) {
+			Training training = activeTrainings.stream().filter(t -> t.getId().equals(trainingId)).findFirst()
+					.orElse(null);
+
+			if (training != null) {
+				Text text = trainingTextMapper.getTextForTraining(training);
+
+				SearchResult result = new SearchResult();
+				result.setSource("TRAINING");
+				result.setId(training.getId());
+				result.setTitle(training.getTitle());
+				result.setRelevanceScore(10.0 - results.size()); // Decreasing score
+				result.setRawData(training);
+
+				if (text != null) {
+					result.setContent(text.getDescription());
+				}
+
+				results.add(result);
+
+				if (results.size() >= limit)
+					break;
+			}
+		}
+
+		// Fill remaining with active trainings if needed
+		if (results.size() < limit) {
+			for (Training training : activeTrainings) {
+				if (results.stream().anyMatch(r -> r.getId().equals(training.getId()))) {
+					continue;
+				}
+
+				Text text = trainingTextMapper.getTextForTraining(training);
+
+				SearchResult result = new SearchResult();
+				result.setSource("TRAINING");
+				result.setId(training.getId());
+				result.setTitle(training.getTitle());
+				result.setRelevanceScore(5.0);
+				result.setRawData(training);
+
+				if (text != null) {
+					result.setContent(text.getDescription());
+				}
+
+				results.add(result);
+
+				if (results.size() >= limit)
+					break;
+			}
+		}
+
+		logger.debug("Returning {} popular trainings", results.size());
+		return results;
+	}
+
+	@Override
+	public List<SearchResult> searchWithFilters(String query, SearchFilters filters) {
+		if (query == null || query.trim().isEmpty()) {
+			return Collections.emptyList();
+		}
+
+		logger.debug("Searching with filters - Query: {}, Filters: {}", query, filters != null ? "applied" : "none");
+
+		List<SearchResult> results = new ArrayList<>();
+
+		// Determine which sources to search
+		boolean searchFaq = filters == null || filters.getSource() == null
+				|| "FAQ".equalsIgnoreCase(filters.getSource());
+		boolean searchText = filters == null || filters.getSource() == null
+				|| "TEXT".equalsIgnoreCase(filters.getSource());
+		boolean searchTraining = filters == null || filters.getSource() == null
+				|| "TRAINING".equalsIgnoreCase(filters.getSource());
+
+		// Search each source
+		if (searchFaq) {
+			results.addAll(searchFAQ(query));
+		}
+
+		if (searchText) {
+			results.addAll(searchText(query));
+		}
+
+		if (searchTraining) {
+			results.addAll(searchTraining(query));
+		}
+
+		// Apply filters
+		if (filters != null) {
+			results = applyFilters(results, filters);
+		}
+
+		// Sort by relevance
+		results.sort((a, b) -> Double.compare(b.getRelevanceScore(), a.getRelevanceScore()));
+
+		logger.debug("Found {} results after filtering", results.size());
+		return results;
+	}
+
+	private List<SearchResult> applyFilters(List<SearchResult> results, SearchFilters filters) {
+		return results.stream().filter(result -> {
+			// Price filter (only for TEXT source)
+			if ("TEXT".equals(result.getSource()) && result.getRawData() instanceof Text) {
+				Text text = (Text) result.getRawData();
+
+				if (filters.getMinPrice() != null && text.getMoney() != null) {
+					if (text.getMoney() < filters.getMinPrice()) {
+						return false;
+					}
+				}
+
+				if (filters.getMaxPrice() != null && text.getMoney() != null) {
+					if (text.getMoney() > filters.getMaxPrice()) {
+						return false;
+					}
+				}
+			}
+
+			// Active filter (only for TRAINING source)
+			if ("TRAINING".equals(result.getSource()) && result.getRawData() instanceof Training) {
+				Training training = (Training) result.getRawData();
+
+				if (Boolean.TRUE.equals(filters.getActiveOnly())) {
+					if (training.getIsActive() == null || !training.getIsActive()) {
+						return false;
+					}
+				}
+			}
+
+			// Category filter
+			if (filters.getCategory() != null && !filters.getCategory().isEmpty()) {
+				String title = result.getTitle().toLowerCase();
+				List<String> categoryKeywords = CATEGORY_KEYWORDS.getOrDefault(filters.getCategory(),
+						Collections.singletonList(filters.getCategory().toLowerCase()));
+
+				boolean matchesCategory = categoryKeywords.stream().anyMatch(title::contains);
+
+				if (!matchesCategory) {
+					return false;
+				}
+			}
+
+			return true;
+		}).collect(Collectors.toList());
+	}
+
+	/**
+	 * Detect category from query
+	 */
+	public String detectCategory(String query) {
+		if (query == null)
+			return null;
+
+		String lower = query.toLowerCase();
+
+		for (Map.Entry<String, List<String>> entry : CATEGORY_KEYWORDS.entrySet()) {
+			for (String keyword : entry.getValue()) {
+				if (lower.contains(keyword)) {
+					return entry.getKey();
+				}
+			}
+		}
+
+		return null;
 	}
 
 }

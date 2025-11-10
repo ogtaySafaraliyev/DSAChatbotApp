@@ -2,6 +2,7 @@ package az.dsa.chatbot.service.impl;
 
 import az.dsa.chatbot.dto.ChatRequest;
 import az.dsa.chatbot.dto.ChatResponse;
+import az.dsa.chatbot.dto.SearchFilters;
 import az.dsa.chatbot.dto.SearchResult;
 import az.dsa.chatbot.dto.SessionData;
 import az.dsa.chatbot.entity.Faq;
@@ -14,97 +15,104 @@ import az.dsa.chatbot.service.IntentService;
 import az.dsa.chatbot.service.OpenAIService;
 import az.dsa.chatbot.service.SearchService;
 import az.dsa.chatbot.service.SessionService;
+import az.dsa.chatbot.util.TrainingTextMapper;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class ChatServiceImpl implements ChatService {
-    
-    private static final Logger logger = LoggerFactory.getLogger(ChatServiceImpl.class);
-    
-    @Autowired
-    private SessionService sessionService;
-    
-    @Autowired
-    private OpenAIService openAIService;
-    
-    @Autowired
-    private IntentService intentService;
-    
-    @Autowired
-    private SearchService searchService;
-    
-    // TODO: Will inject these in next steps
-    // @Autowired
-    // private OpenAIService openAIService;
-    // @Autowired
-    // private SearchService searchService;
-    // @Autowired
-    // private IntentService intentService;
-    
-    @Override
-    public ChatResponse processMessage(ChatRequest request) {
-        String sessionId = request.getSessionId();
-        String message = request.getMessage().trim();
-        
-        logger.info("Processing message for session: {}", maskSessionId(sessionId));
-        
-        // Get or create session
-        SessionData session = sessionService.getOrCreateSession(sessionId);
-        
-        // Add message to history
-        session.addMessage("User: " + message);
-        
-        // Check if empty message
-        if (message.isEmpty()) {
-            return createResponse(session, 
-                "Zəhmət olmasa məqsədinizi daha aydın yazın");
-        }
-        
-        // Check current mode
-        Mode currentMode = Mode.fromString(session.getCurrentMode());
-        
-        // Route based on mode
-        ChatResponse response;
-        switch (currentMode) {
-            case CONTACT:
-                response = handleContactMode(session, message);
-                break;
-            case CONSULT:
-                response = handleConsultMode(session, message);
-                break;
-            default:
-                response = handleInitialMessage(session, message);
-                break;
-        }
-        
-        // Add bot response to history
-        session.addMessage("Bot: " + response.getReply());
-        
-        // Save session
-        sessionService.saveSession(session);
-        
-        return response;
-    }
-    
-    @Override
-    public void resetSession(String sessionId) {
-        logger.info("Resetting session: {}", maskSessionId(sessionId));
-        sessionService.deleteSession(sessionId);
-    }
-    
-    @Override
-    public void cleanExpiredSessions() {
-        sessionService.cleanExpiredSessions();
-    }
-    
-    // ===== MODE HANDLERS (Skeleton) =====
-    
+
+	private static final Logger logger = LoggerFactory.getLogger(ChatServiceImpl.class);
+
+	@Autowired
+	private SessionService sessionService;
+
+	@Autowired
+	private OpenAIService openAIService;
+
+	@Autowired
+	private IntentService intentService;
+
+	@Autowired
+	private SearchService searchService;
+
+	@Autowired
+	private TrainingTextMapper trainingTextMapper;
+
+	// TODO: Will inject these in next steps
+	// @Autowired
+	// private OpenAIService openAIService;
+	// @Autowired
+	// private SearchService searchService;
+	// @Autowired
+	// private IntentService intentService;
+
+	@Override
+	public ChatResponse processMessage(ChatRequest request) {
+		String sessionId = request.getSessionId();
+		String message = request.getMessage().trim();
+
+		logger.info("Processing message for session: {}", maskSessionId(sessionId));
+
+		// Get or create session
+		SessionData session = sessionService.getOrCreateSession(sessionId);
+
+		// Add message to history
+		session.addMessage("User: " + message);
+
+		// Check if empty message
+		if (message.isEmpty()) {
+			return createResponse(session, "Zəhmət olmasa məqsədinizi daha aydın yazın");
+		}
+
+		// Check current mode
+		Mode currentMode = Mode.fromString(session.getCurrentMode());
+
+		// Route based on mode
+		ChatResponse response;
+		switch (currentMode) {
+		case CONTACT:
+			response = handleContactMode(session, message);
+			break;
+		case CONSULT:
+			response = handleConsultMode(session, message);
+			break;
+		default:
+			response = handleInitialMessage(session, message);
+			break;
+		}
+
+		// Add bot response to history
+		session.addMessage("Bot: " + response.getReply());
+
+		// Save session
+		sessionService.saveSession(session);
+
+		return response;
+	}
+
+	@Override
+	public void resetSession(String sessionId) {
+		logger.info("Resetting session: {}", maskSessionId(sessionId));
+		sessionService.deleteSession(sessionId);
+	}
+
+	@Override
+	public void cleanExpiredSessions() {
+		sessionService.cleanExpiredSessions();
+	}
+
+	// ===== MODE HANDLERS (Skeleton) =====
+
 //    private ChatResponse handleInitialMessage(SessionData session, String message) {
 //        // TODO: Step 1.3 - Implement OpenAI normalization + intent detection
 //        // TODO: Step 2.x - Implement database search
@@ -155,349 +163,483 @@ public class ChatServiceImpl implements ChatService {
 //            "• Qeydiyyat və əlaqə\n" +
 //            "• Konsultasiya");
 //    }
-    
-    private ChatResponse handleInitialMessage(SessionData session, String message) {
-        
-        // Step 1: Normalize text
-        String normalizedText = openAIService.normalizeText(message);
-        logger.debug("Normalized: {} -> {}", message, normalizedText);
-        
-        // Step 2: Check if ambiguous
-        if (openAIService.isAmbiguous(normalizedText)) {
-            return createResponse(session,
-                "Hansı sahədə sizə kömək edə bilərəm?\n\n" +
-                "• Data Analytics təlimləri\n" +
-                "• Machine Learning təlimləri\n" +
-                "• AI və Deep Learning\n" +
-                "• Qeydiyyat və əlaqə");
-        }
-        
-        // Step 3: Determine intent
-        Intent intent = intentService.determineIntent(normalizedText);
-        logger.info("Detected intent: {}", intent);
-        
-        // Step 4: Route based on intent
-        switch (intent) {
-            case GREETING:
-                return createResponse(session,
-                    "Salam! Data Science Academy-ə xoş gəlmisiniz! " +
-                    "Sizə necə kömək edə bilərəm?\n\n" +
-                    "• Təlimlərimiz haqqında məlumat\n" +
-                    "• Qeydiyyat və konsultasiya\n" +
-                    "• Əlaqə");
-            
-            case CONTACT:
-                session.setCurrentMode(Mode.CONTACT.getValue());
-                session.setCurrentStep("awaiting_name");
-                return createResponse(session,
-                    "Əlaqə üçün zəhmət olmasa ad və soyadınızı yazın");
-            
-            case CONSULT:
-                session.setCurrentMode(Mode.CONSULT.getValue());
-                session.setCurrentStep("awaiting_experience");
-                return createResponse(session,
-                    "Sizə uyğun təlimi seçməyə kömək edim.\n" +
-                    "Hansı sahədə təcrübəniz var? " +
-                    "(Məsələn: proqramlaşdırma, analitika, və ya yoxdur)");
-            
-            case QUERY:
-            case TRAINER:
-                return handleQueryIntent(session, normalizedText);
-            
-            case UNCLEAR:
-            default:
-                return createResponse(session,
-                    "Üzr istəyirik, məqsədinizi tam başa düşə bilmədim. " +
-                    "Zəhmət olmasa daha konkret sual verin.\n\n" +
-                    "Məsələn:\n" +
-                    "• Python təlimi haqqında məlumat\n" +
-                    "• Qeydiyyat üçün əlaqə\n" +
-                    "• Təlim qiymətləri");
-        }
-    }
-    
-    // ******************
-    
-    private ChatResponse handleQueryIntent(SessionData session, String query) {
-        logger.info("Handling query: {}", query);
-        
-        // Try fuzzy search first (better for typos)
-        List<SearchResult> results = searchService.fuzzySearch(query, 3);
-        
-        if (results.isEmpty()) {
-            return createResponse(session,
-                "Bu məlumatı əməkdaşlarımızdan öyrənə bilərik. " +
-                "Əlaqə: 051 341 43 40 və ya info@dsa.az\n\n" +
-                "Başqa sualınız varmı?");
-        }
-        
-        // Log search results for debugging
-        for (SearchResult result : results) {
-            logger.debug("Result: {} - {} (score: {})", 
-                        result.getSource(), 
-                        result.getTitle(), 
-                        result.getRelevanceScore());
-        }
-        
-        // Get the best result
-        SearchResult bestResult = results.get(0);
-        
-        // Format response based on source
-        String formattedResponse = formatSearchResultResponse(bestResult, query);
-        
-        // Add additional results if available
-        if (results.size() > 1) {
-            formattedResponse += "\n\n📚 Digər uyğun təlimlər:";
-            for (int i = 1; i < Math.min(results.size(), 3); i++) {
-                SearchResult result = results.get(i);
-                formattedResponse += String.format("\n• %s", result.getTitle());
-            }
-            formattedResponse += "\n\nDaha ətraflı məlumat üçün konkret təlim adını yaza bilərsiniz.";
-        }
-        
-        return createResponse(session, formattedResponse);
-    }
-    
-    private String formatSearchResultResponse(SearchResult result, String query) {
-        // Prepare raw data for OpenAI
-        String rawData = buildRawData(result);
-        
-        // Format with OpenAI
-        try {
-            String formatted = openAIService.formatResponse(rawData, query);
-            return formatted;
-        } catch (Exception e) {
-            logger.error("Error formatting response with OpenAI: {}", e.getMessage());
-            // Fallback to manual formatting
-            return formatManually(result);
-        }
-    }
-    
 
-private String buildRawData(SearchResult result) {
-    StringBuilder sb = new StringBuilder();
-    
-    if ("FAQ".equals(result.getSource()) && result.getRawData() instanceof Faq) {
-        Faq faq = (Faq) result.getRawData();
-        sb.append("Sual: ").append(faq.getQuestion()).append("\n");
-        sb.append("Cavab: ").append(faq.getAnswer());
-        
-    } else if ("TEXT".equals(result.getSource()) && result.getRawData() instanceof Text) {
-        Text text = (Text) result.getRawData();
-        sb.append("Təlim: ").append(text.getTitle()).append("\n\n");
-        
-        if (text.getDescription() != null && !text.getDescription().isEmpty()) {
-            sb.append("Təsvir: ").append(text.getDescription()).append("\n\n");
-        }
-        
-        if (text.getMoney() != null) {
-            sb.append("Qiymət: ").append(text.getMoney()).append(" AZN\n");
-        }
-        
-        if (text.getInformation() != null && !text.getInformation().isEmpty()) {
-            // Limit information length
-            String info = text.getInformation();
-            if (info.length() > 800) {
-                info = info.substring(0, 800) + "...";
-            }
-            sb.append("\nƏtraflı məlumat:\n").append(info);
-        }
-        
-    } else if ("TRAINING".equals(result.getSource()) && result.getRawData() instanceof Training) {
-        Training training = (Training) result.getRawData();
-        sb.append("Təlim: ").append(training.getTitle()).append("\n");
-        sb.append("Aktiv: ").append(training.getIsActive() ? "Bəli" : "Xeyr").append("\n");
-        
-        // Find corresponding Text for details
-        // (will implement in next step if needed)
-    }
-    
-    return sb.toString();
-}
+	private ChatResponse handleInitialMessage(SessionData session, String message) {
 
-private String formatManually(SearchResult result) {
-    StringBuilder response = new StringBuilder();
-    
-    if ("FAQ".equals(result.getSource()) && result.getRawData() instanceof Faq) {
-        Faq faq = (Faq) result.getRawData();
-        response.append("✅ ").append(faq.getAnswer());
-        
-    } else if ("TEXT".equals(result.getSource()) && result.getRawData() instanceof Text) {
-        Text text = (Text) result.getRawData();
-        response.append("📚 **").append(text.getTitle()).append("**\n\n");
-        
-        if (text.getDescription() != null) {
-            response.append(text.getDescription()).append("\n\n");
-        }
-        
-        if (text.getMoney() != null) {
-            response.append("💰 Qiymət: ").append(text.getMoney()).append(" AZN");
-        }
-        
-    } else if ("TRAINING".equals(result.getSource())) {
-        response.append("📚 ").append(result.getTitle());
-    }
-    
-    return response.toString();
-}
+		// Step 1: Normalize text
+		String normalizedText = openAIService.normalizeText(message);
+		logger.debug("Normalized: {} -> {}", message, normalizedText);
 
-    private String formatSearchResult(SearchResult result) {
-        StringBuilder sb = new StringBuilder();
-        
-        sb.append("Mənbə: ").append(result.getSource()).append("\n");
-        sb.append("Başlıq: ").append(result.getTitle()).append("\n");
-        sb.append("Məzmun: ").append(result.getContent()).append("\n");
-        
-        // Add specific data based on source
-        if ("FAQ".equals(result.getSource()) && result.getRawData() instanceof Faq) {
-            Faq faq = (Faq) result.getRawData();
-            sb.append("Cavab: ").append(faq.getAnswer());
-        } else if ("TEXT".equals(result.getSource()) && result.getRawData() instanceof Text) {
-            Text text = (Text) result.getRawData();
-            if (text.getMoney() != null) {
-                sb.append("Qiymət: ").append(text.getMoney()).append(" AZN\n");
-            }
-            if (text.getInformation() != null) {
-                sb.append("Ətraflı: ").append(text.getInformation().substring(0, 
-                    Math.min(500, text.getInformation().length())));
-            }
-        }
-        
-        return sb.toString();
-    }  
-    
-    //                *****************
-    
-    
-    private ChatResponse handleContactMode(SessionData session, String message) {
-        // TODO: Step 3.1 - Full implementation
-        String currentStep = session.getCurrentStep();
-        
-        if ("awaiting_name".equals(currentStep)) {
-            session.putData("fullName", message);
-            session.setCurrentStep("awaiting_phone");
-            return createResponse(session,
-                "Təşəkkürlər! İndi telefon nömrənizi yazın.\n" +
-                "Format: +994XXXXXXXXX");
-        }
-        
-        if ("awaiting_phone".equals(currentStep)) {
-            // TODO: Validate phone format
-            if (!message.matches("^\\+994[0-9]{9}$")) {
-                return createResponse(session,
-                    "Zəhmət olmasa düzgün formatda yazın: +994XXXXXXXXX");
-            }
-            
-            session.putData("phone", message);
-            session.setCurrentStep("awaiting_email");
-            return createResponse(session,
-                "Email ünvanınızı yazın (və ya keç demək üçün 'yox' yazın)");
-        }
-        
-        if ("awaiting_email".equals(currentStep)) {
-            // TODO: Step 3.1 - Save to database
-            return createResponse(session,
-                "Təşəkkürlər! Məlumatlarınız qeyd edildi. " +
-                "Əməkdaşlarımız sizinlə əlaqə saxlayacaq.\n\n" +
-                "Başqa sualınız varmı?");
-        }
-        
-        return createResponse(session, "Gözlənilməz vəziyyət");
-    }
-    
-    private ChatResponse handleConsultMode(SessionData session, String message) {
-        // TODO: Step 3.2 - Full implementation
-        String currentStep = session.getCurrentStep();
-        
-        if ("awaiting_experience".equals(currentStep)) {
-            session.putData("experience", message);
-            session.setCurrentStep("awaiting_interest");
-            return createResponse(session,
-                "Hansı sahəyə marağınız var?\n" +
-                "(Məsələn: Data Analytics, Machine Learning, AI, Data Engineering)");
-        }
-        
-        if ("awaiting_interest".equals(currentStep)) {
-            session.putData("interest", message);
-            session.setCurrentStep("awaiting_goal");
-            return createResponse(session,
-                "Məqsədiniz nədir?\n" +
-                "(Məsələn: karyera dəyişikliyi, bilik artırma, sertifikat)");
-        }
-        
-        if ("awaiting_goal".equals(currentStep)) {
-            session.putData("goal", message);
-            session.setCurrentStep("awaiting_time");
-            return createResponse(session,
-                "Nə qədər vaxtınız var?\n" +
-                "(Məsələn: 2 ay, 3 ay, 6 ay)");
-        }
-        
-        if ("awaiting_time".equals(currentStep)) {
-            session.putData("time", message);
-            session.setCurrentStep("awaiting_budget");
-            return createResponse(session,
-                "Büdcəniz nə qədərdir? (AZN)");
-        }
-        
-        if ("awaiting_budget".equals(currentStep)) {
-            session.putData("budget", message);
-            // TODO: Step 3.3 - Search matching trainings
-            return createResponse(session,
-                "Sizə uyğun təlimləri axtarıram...\n" +
-                "(Training search will be implemented in Step 3.3)");
-        }
-        
-        return createResponse(session, "Gözlənilməz vəziyyət");
-    }
-    
-    // ===== HELPER METHODS =====
-    
-    private boolean isGreeting(String message) {
-        List<String> greetings = Arrays.asList(
-            "salam", "salamlar", "sabah", "sabahınız xeyir", 
-            "axşamınız xeyir", "gün aydın", "hello", "hi"
-        );
-        return greetings.stream().anyMatch(message::contains);
-    }
-    
-    private boolean isContactIntent(String message) {
-        List<String> contactKeywords = Arrays.asList(
-            "əlaqə", "zəng", "telefon", "contact", 
-            "müraciət", "əməkdaş"
-        );
-        return contactKeywords.stream().anyMatch(message::contains);
-    }
-    
-    private boolean isConsultIntent(String message) {
-        List<String> consultKeywords = Arrays.asList(
-            "öyrənmək istəyirəm", "təlim", "kurs", 
-            "öyrənmək", "məsləhət", "konsultasiya"
-        );
-        return consultKeywords.stream().anyMatch(message::contains);
-    }
-    
-    private boolean isTrainingQuery(String message) {
-        List<String> trainingKeywords = Arrays.asList(
-            "python", "machine learning", "data science",
-            "sql", "tableau", "power bi", "excel",
-            "r proqramlaşdırma", "spss"
-        );
-        return trainingKeywords.stream()
-                .anyMatch(keyword -> message.contains(keyword.toLowerCase()));
-    }
-    
-    private ChatResponse createResponse(SessionData session, String reply) {
-        return ChatResponse.builder()
-                .sessionId(session.getSessionId())
-                .reply(reply)
-                .currentMode(session.getCurrentMode())
-                .build();
-    }
-    
-    private String maskSessionId(String sessionId) {
-        if (sessionId == null || sessionId.length() < 8) return "****";
-        return sessionId.substring(0, 4) + "****" + 
-               sessionId.substring(sessionId.length() - 4);
-    }
+		// Step 2: Check if ambiguous
+		if (openAIService.isAmbiguous(normalizedText)) {
+			return createResponse(session, "Hansı sahədə sizə kömək edə bilərəm?\n\n" + "• Data Analytics təlimləri\n"
+					+ "• Machine Learning təlimləri\n" + "• AI və Deep Learning\n" + "• Qeydiyyat və əlaqə");
+		}
+
+		// Step 3: Determine intent
+		Intent intent = intentService.determineIntent(normalizedText);
+		logger.info("Detected intent: {}", intent);
+
+		// Step 4: Route based on intent
+		switch (intent) {
+		case GREETING:
+			return createResponse(session,
+					"Salam! Data Science Academy-ə xoş gəlmisiniz! " + "Sizə necə kömək edə bilərəm?\n\n"
+							+ "• Təlimlərimiz haqqında məlumat\n" + "• Qeydiyyat və konsultasiya\n" + "• Əlaqə");
+
+		case CONTACT:
+			session.setCurrentMode(Mode.CONTACT.getValue());
+			session.setCurrentStep("awaiting_name");
+			return createResponse(session, "Əlaqə üçün zəhmət olmasa ad və soyadınızı yazın");
+
+		case CONSULT:
+			session.setCurrentMode(Mode.CONSULT.getValue());
+			session.setCurrentStep("awaiting_experience");
+			return createResponse(session, "Sizə uyğun təlimi seçməyə kömək edim.\n" + "Hansı sahədə təcrübəniz var? "
+					+ "(Məsələn: proqramlaşdırma, analitika, və ya yoxdur)");
+
+		case QUERY:
+		case TRAINER:
+			return handleQueryIntent(session, normalizedText);
+
+		case UNCLEAR:
+		default:
+			return createResponse(session,
+					"Üzr istəyirik, məqsədinizi tam başa düşə bilmədim. " + "Zəhmət olmasa daha konkret sual verin.\n\n"
+							+ "Məsələn:\n" + "• Python təlimi haqqında məlumat\n" + "• Qeydiyyat üçün əlaqə\n"
+							+ "• Təlim qiymətləri");
+		}
+	}
+
+	// ******************
+
+	private ChatResponse handleQueryIntent(SessionData session, String query) {
+		logger.info("Handling query: {}", query);
+
+		// Detect if user is asking for categories/list
+		if (isListRequest(query)) {
+			return handleListRequest(session, query);
+		}
+
+		// Detect if price query
+		Integer[] priceRange = extractPriceRange(query);
+		if (priceRange != null) {
+			return handlePriceQuery(session, priceRange[0], priceRange[1]);
+		}
+
+		// Detect category
+		String category = searchService.detectCategory(query);
+		if (category != null) {
+			logger.debug("Detected category: {}", category);
+		}
+
+		// Prepare filters
+		SearchFilters filters = new SearchFilters();
+		filters.setActiveOnly(true);
+		if (category != null) {
+			filters.setCategory(category);
+		}
+
+		// Search with filters
+		List<SearchResult> results = searchService.searchWithFilters(query, filters);
+
+		// Fallback to fuzzy search if no results
+		if (results.isEmpty()) {
+			results = searchService.fuzzySearch(query, 3);
+		}
+
+		if (results.isEmpty()) {
+			return createResponse(session, "Bu məlumatı əməkdaşlarımızdan öyrənə bilərik. "
+					+ "Əlaqə: 051 341 43 40 və ya info@dsa.az\n\n" + "Başqa sualınız varmı?");
+		}
+
+		// Log search results for debugging
+		for (SearchResult result : results) {
+			logger.debug("Result: {} - {} (score: {})", result.getSource(), result.getTitle(),
+					result.getRelevanceScore());
+		}
+
+		// Get the best result
+		SearchResult bestResult = results.get(0);
+
+		// Enrich result with Training-Text relationship
+		enrichSearchResult(bestResult);
+
+		// Format response
+		String formattedResponse = formatSearchResultResponse(bestResult, query);
+
+		// Add additional results if available
+		if (results.size() > 1) {
+			formattedResponse += "\n\n📚 Digər uyğun təlimlər:";
+			for (int i = 1; i < Math.min(results.size(), 3); i++) {
+				SearchResult result = results.get(i);
+				formattedResponse += String.format("\n• %s", result.getTitle());
+			}
+			formattedResponse += "\n\nDaha ətraflı məlumat üçün konkret təlim adını yaza bilərsiniz.";
+		}
+
+		return createResponse(session, formattedResponse);
+	}
+
+	private boolean isListRequest(String query) {
+		String lower = query.toLowerCase();
+		return lower.contains("hansı təlimlər") || lower.contains("bütün təlimlər") || lower.contains("təlimləriniz")
+				|| lower.contains("kurslarınız") || lower.contains("siyahı");
+	}
+
+	private ChatResponse handleListRequest(SessionData session, String query) {
+		logger.info("Handling list request");
+
+		// Check if category-specific
+		String category = searchService.detectCategory(query);
+
+		List<SearchResult> results;
+		if (category != null) {
+			results = searchService.searchByCategory(category);
+		} else {
+			results = searchService.getPopularTrainings(10);
+		}
+
+		if (results.isEmpty()) {
+			return createResponse(session, "Hal-hazırda aktiv təlim yoxdur. " + "Ətraflı məlumat üçün: 051 341 43 40");
+		}
+
+		StringBuilder response = new StringBuilder();
+		if (category != null) {
+			response.append(String.format("📚 **%s üzrə təlimlər:**\n\n", category));
+		} else {
+			response.append("📚 **Populyar təlimlərimiz:**\n\n");
+		}
+
+		for (int i = 0; i < Math.min(results.size(), 10); i++) {
+			SearchResult result = results.get(i);
+			response.append(String.format("%d. %s\n", i + 1, result.getTitle()));
+		}
+
+		response.append("\nKonkret təlim haqqında məlumat almaq üçün adını yaza bilərsiniz.");
+
+		return createResponse(session, response.toString());
+	}
+
+	private Integer[] extractPriceRange(String query) {
+		String lower = query.toLowerCase();
+
+		// Check for price-related keywords
+		if (!lower.contains("qiymət") && !lower.contains("azn") && !lower.contains("manat")
+				&& !lower.contains("büdcə")) {
+			return null;
+		}
+
+		// Try to extract numbers
+		java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("\\d+");
+		java.util.regex.Matcher matcher = pattern.matcher(query);
+
+		List<Integer> numbers = new ArrayList<>();
+		while (matcher.find()) {
+			try {
+				numbers.add(Integer.parseInt(matcher.group()));
+			} catch (NumberFormatException e) {
+				// Ignore
+			}
+		}
+
+		if (numbers.isEmpty()) {
+			return null;
+		}
+
+		// Determine min and max
+		Integer min = null;
+		Integer max = null;
+
+		if (lower.contains("aşağı") || lower.contains("ucuz") || lower.contains("qədər")) {
+			max = numbers.get(0);
+		} else if (lower.contains("yuxarı") || lower.contains("bahalı") || lower.contains("dən")) {
+			min = numbers.get(0);
+		} else if (numbers.size() >= 2) {
+			min = Math.min(numbers.get(0), numbers.get(1));
+			max = Math.max(numbers.get(0), numbers.get(1));
+		} else {
+			max = numbers.get(0);
+		}
+
+		return new Integer[] { min, max };
+	}
+
+	private ChatResponse handlePriceQuery(SessionData session, Integer min, Integer max) {
+		logger.info("Handling price query: {} - {}", min, max);
+
+		List<SearchResult> results = searchService.searchByPriceRange(min, max);
+
+		if (results.isEmpty()) {
+			return createResponse(session,
+					String.format("Bu qiymət aralığında (%s - %s AZN) təlim tapılmadı.\n" + "Əlaqə: 051 341 43 40",
+							min != null ? min : "0", max != null ? max : "∞"));
+		}
+
+		StringBuilder response = new StringBuilder();
+		response.append(String.format("💰 **Qiymət aralığı %s - %s AZN:**\n\n", min != null ? min : "0",
+				max != null ? max : "∞"));
+
+		for (int i = 0; i < Math.min(results.size(), 5); i++) {
+			SearchResult result = results.get(i);
+			if (result.getRawData() instanceof Text) {
+				Text text = (Text) result.getRawData();
+				response.append(String.format("• %s - %d AZN\n", text.getTitle(), text.getMoney()));
+			}
+		}
+
+		return createResponse(session, response.toString());
+	}
+
+	private void enrichSearchResult(SearchResult result) {
+		if ("TRAINING".equals(result.getSource()) && result.getRawData() instanceof Training) {
+			Training training = (Training) result.getRawData();
+			Text text = trainingTextMapper.getTextForTraining(training);
+
+			if (text != null) {
+				result.setContent(text.getDescription());
+				// Store both for later use
+				Map<String, Object> enriched = new HashMap<>();
+				enriched.put("training", training);
+				enriched.put("text", text);
+				result.setRawData(enriched);
+			}
+		}
+	}
+
+	private String formatSearchResultResponse(SearchResult result, String query) {
+		// Prepare raw data for OpenAI
+		String rawData = buildRawData(result);
+
+		// Format with OpenAI
+		try {
+			String formatted = openAIService.formatResponse(rawData, query);
+			return formatted;
+		} catch (Exception e) {
+			logger.error("Error formatting response with OpenAI: {}", e.getMessage());
+			// Fallback to manual formatting
+			return formatManually(result);
+		}
+	}
+
+	private String buildRawData(SearchResult result) {
+		StringBuilder sb = new StringBuilder();
+
+		if ("FAQ".equals(result.getSource()) && result.getRawData() instanceof Faq) {
+			Faq faq = (Faq) result.getRawData();
+			sb.append("Sual: ").append(faq.getQuestion()).append("\n");
+			sb.append("Cavab: ").append(faq.getAnswer());
+
+		} else if ("TEXT".equals(result.getSource()) && result.getRawData() instanceof Text) {
+			Text text = (Text) result.getRawData();
+			sb.append("Təlim: ").append(text.getTitle()).append("\n\n");
+
+			if (text.getDescription() != null && !text.getDescription().isEmpty()) {
+				sb.append("Təsvir: ").append(text.getDescription()).append("\n\n");
+			}
+
+			if (text.getMoney() != null) {
+				sb.append("Qiymət: ").append(text.getMoney()).append(" AZN\n");
+			}
+
+			if (text.getInformation() != null && !text.getInformation().isEmpty()) {
+				String info = text.getInformation();
+				if (info.length() > 800) {
+					info = info.substring(0, 800) + "...";
+				}
+				sb.append("\nƏtraflı məlumat:\n").append(info);
+			}
+
+		} else if (result.getRawData() instanceof Map) {
+			// Enriched Training+Text data
+			@SuppressWarnings("unchecked")
+			Map<String, Object> enriched = (Map<String, Object>) result.getRawData();
+
+			Training training = (Training) enriched.get("training");
+			Text text = (Text) enriched.get("text");
+
+			if (training != null) {
+				sb.append("Təlim: ").append(training.getTitle()).append("\n\n");
+			}
+
+			if (text != null) {
+				if (text.getDescription() != null) {
+					sb.append("Təsvir: ").append(text.getDescription()).append("\n\n");
+				}
+
+				if (text.getMoney() != null) {
+					sb.append("Qiymət: ").append(text.getMoney()).append(" AZN\n");
+				}
+
+				if (text.getInformation() != null) {
+					String info = text.getInformation();
+					if (info.length() > 800) {
+						info = info.substring(0, 800) + "...";
+					}
+					sb.append("\nƏtraflı məlumat:\n").append(info);
+				}
+			}
+		}
+
+		return sb.toString();
+	}
+
+	private String formatManually(SearchResult result) {
+		StringBuilder response = new StringBuilder();
+
+		if ("FAQ".equals(result.getSource()) && result.getRawData() instanceof Faq) {
+			Faq faq = (Faq) result.getRawData();
+			response.append("✅ ").append(faq.getAnswer());
+
+		} else if ("TEXT".equals(result.getSource()) && result.getRawData() instanceof Text) {
+			Text text = (Text) result.getRawData();
+			response.append("📚 **").append(text.getTitle()).append("**\n\n");
+
+			if (text.getDescription() != null) {
+				response.append(text.getDescription()).append("\n\n");
+			}
+
+			if (text.getMoney() != null) {
+				response.append("💰 Qiymət: ").append(text.getMoney()).append(" AZN");
+			}
+
+		} else if ("TRAINING".equals(result.getSource())) {
+			response.append("📚 ").append(result.getTitle());
+		}
+
+		return response.toString();
+	}
+
+	private String formatSearchResult(SearchResult result) {
+		StringBuilder sb = new StringBuilder();
+
+		sb.append("Mənbə: ").append(result.getSource()).append("\n");
+		sb.append("Başlıq: ").append(result.getTitle()).append("\n");
+		sb.append("Məzmun: ").append(result.getContent()).append("\n");
+
+		// Add specific data based on source
+		if ("FAQ".equals(result.getSource()) && result.getRawData() instanceof Faq) {
+			Faq faq = (Faq) result.getRawData();
+			sb.append("Cavab: ").append(faq.getAnswer());
+		} else if ("TEXT".equals(result.getSource()) && result.getRawData() instanceof Text) {
+			Text text = (Text) result.getRawData();
+			if (text.getMoney() != null) {
+				sb.append("Qiymət: ").append(text.getMoney()).append(" AZN\n");
+			}
+			if (text.getInformation() != null) {
+				sb.append("Ətraflı: ")
+						.append(text.getInformation().substring(0, Math.min(500, text.getInformation().length())));
+			}
+		}
+
+		return sb.toString();
+	}
+
+	// *****************
+
+	private ChatResponse handleContactMode(SessionData session, String message) {
+		// TODO: Step 3.1 - Full implementation
+		String currentStep = session.getCurrentStep();
+
+		if ("awaiting_name".equals(currentStep)) {
+			session.putData("fullName", message);
+			session.setCurrentStep("awaiting_phone");
+			return createResponse(session, "Təşəkkürlər! İndi telefon nömrənizi yazın.\n" + "Format: +994XXXXXXXXX");
+		}
+
+		if ("awaiting_phone".equals(currentStep)) {
+			// TODO: Validate phone format
+			if (!message.matches("^\\+994[0-9]{9}$")) {
+				return createResponse(session, "Zəhmət olmasa düzgün formatda yazın: +994XXXXXXXXX");
+			}
+
+			session.putData("phone", message);
+			session.setCurrentStep("awaiting_email");
+			return createResponse(session, "Email ünvanınızı yazın (və ya keç demək üçün 'yox' yazın)");
+		}
+
+		if ("awaiting_email".equals(currentStep)) {
+			// TODO: Step 3.1 - Save to database
+			return createResponse(session, "Təşəkkürlər! Məlumatlarınız qeyd edildi. "
+					+ "Əməkdaşlarımız sizinlə əlaqə saxlayacaq.\n\n" + "Başqa sualınız varmı?");
+		}
+
+		return createResponse(session, "Gözlənilməz vəziyyət");
+	}
+
+	private ChatResponse handleConsultMode(SessionData session, String message) {
+		// TODO: Step 3.2 - Full implementation
+		String currentStep = session.getCurrentStep();
+
+		if ("awaiting_experience".equals(currentStep)) {
+			session.putData("experience", message);
+			session.setCurrentStep("awaiting_interest");
+			return createResponse(session, "Hansı sahəyə marağınız var?\n"
+					+ "(Məsələn: Data Analytics, Machine Learning, AI, Data Engineering)");
+		}
+
+		if ("awaiting_interest".equals(currentStep)) {
+			session.putData("interest", message);
+			session.setCurrentStep("awaiting_goal");
+			return createResponse(session,
+					"Məqsədiniz nədir?\n" + "(Məsələn: karyera dəyişikliyi, bilik artırma, sertifikat)");
+		}
+
+		if ("awaiting_goal".equals(currentStep)) {
+			session.putData("goal", message);
+			session.setCurrentStep("awaiting_time");
+			return createResponse(session, "Nə qədər vaxtınız var?\n" + "(Məsələn: 2 ay, 3 ay, 6 ay)");
+		}
+
+		if ("awaiting_time".equals(currentStep)) {
+			session.putData("time", message);
+			session.setCurrentStep("awaiting_budget");
+			return createResponse(session, "Büdcəniz nə qədərdir? (AZN)");
+		}
+
+		if ("awaiting_budget".equals(currentStep)) {
+			session.putData("budget", message);
+			// TODO: Step 3.3 - Search matching trainings
+			return createResponse(session,
+					"Sizə uyğun təlimləri axtarıram...\n" + "(Training search will be implemented in Step 3.3)");
+		}
+
+		return createResponse(session, "Gözlənilməz vəziyyət");
+	}
+
+	// ===== HELPER METHODS =====
+
+	private boolean isGreeting(String message) {
+		List<String> greetings = Arrays.asList("salam", "salamlar", "sabah", "sabahınız xeyir", "axşamınız xeyir",
+				"gün aydın", "hello", "hi");
+		return greetings.stream().anyMatch(message::contains);
+	}
+
+	private boolean isContactIntent(String message) {
+		List<String> contactKeywords = Arrays.asList("əlaqə", "zəng", "telefon", "contact", "müraciət", "əməkdaş");
+		return contactKeywords.stream().anyMatch(message::contains);
+	}
+
+	private boolean isConsultIntent(String message) {
+		List<String> consultKeywords = Arrays.asList("öyrənmək istəyirəm", "təlim", "kurs", "öyrənmək", "məsləhət",
+				"konsultasiya");
+		return consultKeywords.stream().anyMatch(message::contains);
+	}
+
+	private boolean isTrainingQuery(String message) {
+		List<String> trainingKeywords = Arrays.asList("python", "machine learning", "data science", "sql", "tableau",
+				"power bi", "excel", "r proqramlaşdırma", "spss");
+		return trainingKeywords.stream().anyMatch(keyword -> message.contains(keyword.toLowerCase()));
+	}
+
+	private ChatResponse createResponse(SessionData session, String reply) {
+		return ChatResponse.builder().sessionId(session.getSessionId()).reply(reply)
+				.currentMode(session.getCurrentMode()).build();
+	}
+
+	private String maskSessionId(String sessionId) {
+		if (sessionId == null || sessionId.length() < 8)
+			return "****";
+		return sessionId.substring(0, 4) + "****" + sessionId.substring(sessionId.length() - 4);
+	}
 }

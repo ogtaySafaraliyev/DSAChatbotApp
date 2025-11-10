@@ -1,5 +1,6 @@
 package az.dsa.chatbot.service;
 
+import az.dsa.chatbot.dto.SearchFilters;
 import az.dsa.chatbot.dto.SearchResult;
 import java.util.List;
 
@@ -46,5 +47,26 @@ public interface SearchService {
      * Search by price range
      */
     List<SearchResult> searchByPriceRange(Integer minPrice, Integer maxPrice);
+    
+    
+    // updates after phase 2.3
+    
+    /**
+     * Search by category/bootcamp
+     */
+    List<SearchResult> searchByCategory(String category);
+
+    /**
+     * Get popular/recommended trainings
+     */
+    List<SearchResult> getPopularTrainings(int limit);
+
+    /**
+     * Search with filters
+     */
+    List<SearchResult> searchWithFilters(String query, SearchFilters filters);
+    
+    // my addition
+    String detectCategory(String query);
     
 }
