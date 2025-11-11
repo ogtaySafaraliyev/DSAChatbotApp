@@ -14,6 +14,7 @@ import az.dsa.chatbot.service.ChatService;
 import az.dsa.chatbot.service.IntentService;
 import az.dsa.chatbot.service.LeadService;
 import az.dsa.chatbot.service.OpenAIService;
+import az.dsa.chatbot.service.RecommendationService;
 import az.dsa.chatbot.service.SearchService;
 import az.dsa.chatbot.service.SessionService;
 import az.dsa.chatbot.util.TrainingTextMapper;
@@ -51,6 +52,9 @@ public class ChatServiceImpl implements ChatService {
 	
 	@Autowired
 	private LeadService leadService;
+	
+	@Autowired
+	private RecommendationService recommendationService;
 
 	// TODO: Will inject these in next steps
 	// @Autowired
@@ -658,45 +662,97 @@ public class ChatServiceImpl implements ChatService {
 	
 
 	private ChatResponse handleConsultMode(SessionData session, String message) {
-		// TODO: Step 3.2 - Full implementation
-		String currentStep = session.getCurrentStep();
-
-		if ("awaiting_experience".equals(currentStep)) {
-			session.putData("experience", message);
-			session.setCurrentStep("awaiting_interest");
-			return createResponse(session, "Hansı sahəyə marağınız var?\n"
-					+ "(Məsələn: Data Analytics, Machine Learning, AI, Data Engineering)");
-		}
-
-		if ("awaiting_interest".equals(currentStep)) {
-			session.putData("interest", message);
-			session.setCurrentStep("awaiting_goal");
-			return createResponse(session,
-					"Məqsədiniz nədir?\n" + "(Məsələn: karyera dəyişikliyi, bilik artırma, sertifikat)");
-		}
-
-		if ("awaiting_goal".equals(currentStep)) {
-			session.putData("goal", message);
-			session.setCurrentStep("awaiting_time");
-			return createResponse(session, "Nə qədər vaxtınız var?\n" + "(Məsələn: 2 ay, 3 ay, 6 ay)");
-		}
-
-		if ("awaiting_time".equals(currentStep)) {
-			session.putData("time", message);
-			session.setCurrentStep("awaiting_budget");
-			return createResponse(session, "Büdcəniz nə qədərdir? (AZN)");
-		}
-
-		if ("awaiting_budget".equals(currentStep)) {
-			session.putData("budget", message);
-			// TODO: Step 3.3 - Search matching trainings
-			return createResponse(session,
-					"Sizə uyğun təlimləri axtarıram...\n" + "(Training search will be implemented in Step 3.3)");
-		}
-
-		return createResponse(session, "Gözlənilməz vəziyyət");
+	    String currentStep = session.getCurrentStep();
+	    
+	    if ("awaiting_experience".equals(currentStep)) {
+	        session.putData("experience", message);
+	        session.setCurrentStep("awaiting_interest");
+	        return createResponse(session,
+	            "Hansı sahəyə marağınız var?\n\n" +
+	            "Məsələn:\n" +
+	            "• Data Analytics (Excel, Tableau, Power BI)\n" +
+	            "• Machine Learning\n" +
+	            "• AI və Deep Learning\n" +
+	            "• SQL və Data Engineering");
+	    }
+	    
+	    if ("awaiting_interest".equals(currentStep)) {
+	        session.putData("interest", message);
+	        session.setCurrentStep("awaiting_goal");
+	        return createResponse(session,
+	            "Məqsədiniz nədir?\n\n" +
+	            "Məsələn:\n" +
+	            "• Karyera dəyişikliyi\n" +
+	            "• Mövcud bilikləri inkişaf etdirmək\n" +
+	            "• Sertifikat əldə etmək\n" +
+	            "• İş tapmaq");
+	    }
+	    
+	    if ("awaiting_goal".equals(currentStep)) {
+	        session.putData("goal", message);
+	        session.setCurrentStep("awaiting_time");
+	        return createResponse(session,
+	            "Təlimə nə qədər vaxt ayıra bilərsiniz?\n\n" +
+	            "Məsələn: 2 ay, 3 ay, 6 ay");
+	    }
+	    
+	    if ("awaiting_time".equals(currentStep)) {
+	        session.putData("time", message);
+	        session.setCurrentStep("awaiting_budget");
+	        return createResponse(session,
+	            "Büdcəniz nə qədərdir? (AZN)\n\n" +
+	            "Qiymət aralığımız: 250 AZN - 2000 AZN\n" +
+	            "Məsələn: 500, 1000, 1500");
+	    }
+	    
+	    if ("awaiting_budget".equals(currentStep)) {
+	        session.putData("budget", message);
+	        
+	        logger.info("Starting recommendation generation for session: {}", 
+	                   maskSessionId(session.getSessionId()));
+	        
+	        try {
+	            // Get recommendations using the session data
+	            List<SearchResult> recommendations = 
+	                recommendationService.getRecommendations(session);
+	            
+	            // Format response
+	            String formattedResponse = 
+	                recommendationService.formatRecommendations(recommendations, session);
+	            
+	            // Clear mode and data
+	            session.setCurrentMode(null);
+	            session.setCurrentStep(null);
+	            session.clearData();
+	            
+	            logger.info("Recommendations generated successfully - Count: {}", 
+	                       recommendations.size());
+	            
+	            return createResponse(session, formattedResponse);
+	            
+	        } catch (Exception e) {
+	            logger.error("Error generating recommendations: {}", e.getMessage(), e);
+	            
+	            // Clear mode on error
+	            session.setCurrentMode(null);
+	            session.setCurrentStep(null);
+	            session.clearData();
+	            
+	            return createResponse(session,
+	                "⚠️ Tövsiyələri hazırlayarkən texniki problem yarandı.\n" +
+	                "Zəhmət olmasa bir daha cəhd edin və ya birbaşa əlaqə saxlayın:\n\n" +
+	                "📞 051 341 43 40\n" +
+	                "📧 info@dsa.az");
+	        }
+	    }
+	    
+	    // Unexpected step
+	    logger.warn("Unexpected step in consult mode: {}", currentStep);
+	    session.setCurrentMode(null);
+	    session.setCurrentStep(null);
+	    return createResponse(session,
+	        "Üzr istəyirik, texniki problem yarandı. Yenidən başlayın.");
 	}
-
 	// ===== HELPER METHODS =====
 
 	private boolean isGreeting(String message) {

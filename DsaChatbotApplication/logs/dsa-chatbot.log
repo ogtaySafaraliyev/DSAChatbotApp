@@ -442,3 +442,154 @@ Caused by: org.hibernate.query.SemanticException: Could not resolve attribute 'b
 2025-11-11T10:52:54.858+04:00  INFO 28844 --- [RMI TCP Connection(4)-127.0.0.1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
 2025-11-11T10:52:54.861+04:00  INFO 28844 --- [RMI TCP Connection(4)-127.0.0.1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 2 ms
 2025-11-11T11:52:53.917+04:00  INFO 28844 --- [scheduling-1] a.d.c.service.impl.SessionServiceImpl    : Starting expired sessions cleanup...
+2025-11-11T12:09:01.864+04:00  INFO 28844 --- [RMI TCP Connection(82)-127.0.0.1] inMXBeanRegistrar$SpringApplicationAdmin : Application shutdown requested.
+2025-11-11T12:09:01.878+04:00  INFO 28844 --- [RMI TCP Connection(82)-127.0.0.1] o.apache.catalina.core.StandardService   : Stopping service [Tomcat]
+2025-11-11T12:09:01.882+04:00  INFO 28844 --- [RMI TCP Connection(82)-127.0.0.1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Destroying Spring FrameworkServlet 'dispatcherServlet'
+2025-11-11T12:09:01.897+04:00  INFO 28844 --- [RMI TCP Connection(82)-127.0.0.1] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2025-11-11T12:09:01.903+04:00  INFO 28844 --- [RMI TCP Connection(82)-127.0.0.1] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
+2025-11-11T12:09:01.907+04:00  INFO 28844 --- [RMI TCP Connection(82)-127.0.0.1] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
+2025-11-11T14:59:04.487+04:00  INFO 20728 --- [main] az.dsa.chatbot.DsaChatbotApplication     : Starting DsaChatbotApplication using Java 21.0.3 with PID 20728 (C:\Users\Ogtay Safaraliyev\git\DSAChatbotApp\DsaChatbotApplication\target\classes started by Ogtay Safaraliyev in C:\Users\Ogtay Safaraliyev\git\DSAChatbotApp\DsaChatbotApplication)
+2025-11-11T14:59:04.492+04:00  INFO 20728 --- [main] az.dsa.chatbot.DsaChatbotApplication     : No active profile set, falling back to 1 default profile: "default"
+2025-11-11T14:59:06.270+04:00  INFO 20728 --- [main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2025-11-11T14:59:06.425+04:00  INFO 20728 --- [main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 139 ms. Found 11 JPA repository interfaces.
+2025-11-11T14:59:07.377+04:00  INFO 20728 --- [main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 8081 (http)
+2025-11-11T14:59:07.393+04:00  INFO 20728 --- [main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2025-11-11T14:59:07.394+04:00  INFO 20728 --- [main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.8]
+2025-11-11T14:59:07.584+04:00  INFO 20728 --- [main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2025-11-11T14:59:07.585+04:00  INFO 20728 --- [main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 3018 ms
+2025-11-11T14:59:08.001+04:00  INFO 20728 --- [main] o.hibernate.jpa.internal.util.LogHelper  : HHH000204: Processing PersistenceUnitInfo [name: default]
+2025-11-11T14:59:08.113+04:00  INFO 20728 --- [main] org.hibernate.Version                    : HHH000412: Hibernate ORM core version 6.2.2.Final
+2025-11-11T14:59:08.117+04:00  INFO 20728 --- [main] org.hibernate.cfg.Environment            : HHH000406: Using bytecode reflection optimizer
+2025-11-11T14:59:08.368+04:00  INFO 20728 --- [main] o.h.b.i.BytecodeProviderInitiator        : HHH000021: Bytecode provider name : bytebuddy
+2025-11-11T14:59:08.617+04:00  INFO 20728 --- [main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2025-11-11T14:59:08.647+04:00  INFO 20728 --- [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2025-11-11T14:59:08.937+04:00  INFO 20728 --- [main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@1b69fc07
+2025-11-11T14:59:08.940+04:00  INFO 20728 --- [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2025-11-11T14:59:08.999+04:00  INFO 20728 --- [main] org.hibernate.orm.dialect                : HHH035001: Using dialect: org.hibernate.dialect.PostgreSQLDialect, version: org.hibernate.engine.jdbc.env.internal.JdbcEnvironmentInitiator$DialectResolutionInfoImpl@25df2014
+2025-11-11T14:59:09.461+04:00  INFO 20728 --- [main] o.h.b.i.BytecodeProviderInitiator        : HHH000021: Bytecode provider name : bytebuddy
+2025-11-11T14:59:10.922+04:00  INFO 20728 --- [main] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000490: Using JtaPlatform implementation: [org.hibernate.engine.transaction.jta.platform.internal.NoJtaPlatform]
+2025-11-11T14:59:11.025+04:00 DEBUG 20728 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.bootcamp_types 
+       alter column created_at set data type timestamp(6)
+2025-11-11T14:59:11.031+04:00 DEBUG 20728 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.bootcamp_types 
+       alter column updated_at set data type timestamp(6)
+2025-11-11T14:59:11.033+04:00 DEBUG 20728 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.bootcamps 
+       alter column created_at set data type timestamp(6)
+2025-11-11T14:59:11.035+04:00 DEBUG 20728 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.bootcamps 
+       alter column updated_at set data type timestamp(6)
+2025-11-11T14:59:11.038+04:00 DEBUG 20728 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.chat_sessions 
+       alter column conversation_history set data type JSONB
+2025-11-11T14:59:11.039+04:00 DEBUG 20728 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.chat_sessions 
+       alter column created_at set data type timestamp(6)
+2025-11-11T14:59:11.041+04:00 DEBUG 20728 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.chat_sessions 
+       alter column expires_at set data type timestamp(6)
+2025-11-11T14:59:11.046+04:00 DEBUG 20728 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.chat_sessions 
+       alter column last_activity set data type timestamp(6)
+2025-11-11T14:59:11.049+04:00 DEBUG 20728 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.chat_sessions 
+       alter column user_data set data type JSONB
+2025-11-11T14:59:11.051+04:00 DEBUG 20728 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.faq 
+       alter column answer set data type TEXT
+2025-11-11T14:59:11.063+04:00 DEBUG 20728 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.faq 
+       alter column answer_en set data type TEXT
+2025-11-11T14:59:11.065+04:00 DEBUG 20728 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.faq 
+       alter column created_at set data type timestamp(6)
+2025-11-11T14:59:11.066+04:00 DEBUG 20728 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.faq 
+       alter column question set data type TEXT
+2025-11-11T14:59:11.073+04:00 DEBUG 20728 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.faq 
+       alter column question_en set data type TEXT
+2025-11-11T14:59:11.075+04:00 DEBUG 20728 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.faq 
+       alter column updated_at set data type timestamp(6)
+2025-11-11T14:59:11.076+04:00 DEBUG 20728 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.graduates 
+       alter column created_at set data type timestamp(6)
+2025-11-11T14:59:11.078+04:00 DEBUG 20728 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.leads 
+       alter column created_at set data type timestamp(6)
+2025-11-11T14:59:11.081+04:00 DEBUG 20728 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.leads 
+       alter column message set data type TEXT
+2025-11-11T14:59:11.082+04:00 DEBUG 20728 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.metinler 
+       alter column certificates set data type TEXT
+2025-11-11T14:59:11.084+04:00 DEBUG 20728 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.metinler 
+       alter column created_at set data type timestamp(6)
+2025-11-11T14:59:11.085+04:00 DEBUG 20728 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.metinler 
+       alter column description set data type TEXT
+2025-11-11T14:59:11.086+04:00 DEBUG 20728 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.metinler 
+       alter column for_who set data type TEXT
+2025-11-11T14:59:11.087+04:00 DEBUG 20728 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.metinler 
+       alter column information set data type TEXT
+2025-11-11T14:59:11.088+04:00 DEBUG 20728 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.metinler 
+       alter column updated_at set data type timestamp(6)
+2025-11-11T14:59:11.090+04:00 DEBUG 20728 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.trainers 
+       alter column created_at set data type timestamp(6)
+2025-11-11T14:59:11.091+04:00 DEBUG 20728 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.trainers 
+       alter column info set data type TEXT
+2025-11-11T14:59:11.092+04:00 DEBUG 20728 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.trainers 
+       alter column updated_at set data type timestamp(6)
+2025-11-11T14:59:11.094+04:00 DEBUG 20728 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.training_details 
+       alter column certificates set data type TEXT
+2025-11-11T14:59:11.095+04:00 DEBUG 20728 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.training_details 
+       alter column created_at set data type timestamp(6)
+2025-11-11T14:59:11.097+04:00 DEBUG 20728 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.training_details 
+       alter column description set data type TEXT
+2025-11-11T14:59:11.103+04:00 DEBUG 20728 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.training_details 
+       alter column for_who set data type TEXT
+2025-11-11T14:59:11.105+04:00 DEBUG 20728 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.training_details 
+       alter column information set data type TEXT
+2025-11-11T14:59:11.106+04:00 DEBUG 20728 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.training_details 
+       alter column updated_at set data type timestamp(6)
+2025-11-11T14:59:11.109+04:00 DEBUG 20728 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.training_sessions 
+       alter column created_at set data type timestamp(6)
+2025-11-11T14:59:11.111+04:00 DEBUG 20728 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.training_sessions 
+       alter column session_hour set data type time(6)
+2025-11-11T14:59:11.112+04:00 DEBUG 20728 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.training_sessions 
+       alter column updated_at set data type timestamp(6)
+2025-11-11T14:59:11.114+04:00 DEBUG 20728 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.trainings 
+       alter column created_at set data type timestamp(6)
+2025-11-11T14:59:11.117+04:00 DEBUG 20728 --- [main] org.hibernate.SQL                        : 
+    alter table if exists dsa_chatbot_db.trainings 
+       alter column updated_at set data type timestamp(6)
+2025-11-11T14:59:11.238+04:00  INFO 20728 --- [main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2025-11-11T14:59:12.116+04:00  INFO 20728 --- [main] o.s.d.j.r.query.QueryEnhancerFactory     : Hibernate is in classpath; If applicable, HQL parser will be used.
+2025-11-11T14:59:13.486+04:00  WARN 20728 --- [main] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2025-11-11T14:59:14.702+04:00  INFO 20728 --- [main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 2 endpoint(s) beneath base path '/actuator'
+2025-11-11T14:59:14.832+04:00  INFO 20728 --- [main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port(s): 8081 (http) with context path ''
+2025-11-11T14:59:14.853+04:00  INFO 20728 --- [scheduling-1] a.d.c.service.impl.SessionServiceImpl    : Starting expired sessions cleanup...
+2025-11-11T14:59:14.855+04:00  INFO 20728 --- [main] az.dsa.chatbot.DsaChatbotApplication     : Started DsaChatbotApplication in 11.078 seconds (process running for 12.468)
+2025-11-11T14:59:15.348+04:00  INFO 20728 --- [RMI TCP Connection(4)-127.0.0.1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2025-11-11T14:59:15.349+04:00  INFO 20728 --- [RMI TCP Connection(4)-127.0.0.1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2025-11-11T14:59:15.351+04:00  INFO 20728 --- [RMI TCP Connection(4)-127.0.0.1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 2 ms
+2025-11-11T15:59:14.856+04:00  INFO 20728 --- [scheduling-1] a.d.c.service.impl.SessionServiceImpl    : Starting expired sessions cleanup...
