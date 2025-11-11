@@ -12,6 +12,7 @@ import az.dsa.chatbot.model.Intent;
 import az.dsa.chatbot.model.Mode;
 import az.dsa.chatbot.service.ChatService;
 import az.dsa.chatbot.service.IntentService;
+import az.dsa.chatbot.service.LeadService;
 import az.dsa.chatbot.service.OpenAIService;
 import az.dsa.chatbot.service.SearchService;
 import az.dsa.chatbot.service.SessionService;
@@ -47,6 +48,9 @@ public class ChatServiceImpl implements ChatService {
 
 	@Autowired
 	private TrainingTextMapper trainingTextMapper;
+	
+	@Autowired
+	private LeadService leadService;
 
 	// TODO: Will inject these in next steps
 	// @Autowired
@@ -538,34 +542,120 @@ public class ChatServiceImpl implements ChatService {
 	// *****************
 
 	private ChatResponse handleContactMode(SessionData session, String message) {
-		// TODO: Step 3.1 - Full implementation
-		String currentStep = session.getCurrentStep();
-
-		if ("awaiting_name".equals(currentStep)) {
-			session.putData("fullName", message);
-			session.setCurrentStep("awaiting_phone");
-			return createResponse(session, "Təşəkkürlər! İndi telefon nömrənizi yazın.\n" + "Format: +994XXXXXXXXX");
-		}
-
-		if ("awaiting_phone".equals(currentStep)) {
-			// TODO: Validate phone format
-			if (!message.matches("^\\+994[0-9]{9}$")) {
-				return createResponse(session, "Zəhmət olmasa düzgün formatda yazın: +994XXXXXXXXX");
-			}
-
-			session.putData("phone", message);
-			session.setCurrentStep("awaiting_email");
-			return createResponse(session, "Email ünvanınızı yazın (və ya keç demək üçün 'yox' yazın)");
-		}
-
-		if ("awaiting_email".equals(currentStep)) {
-			// TODO: Step 3.1 - Save to database
-			return createResponse(session, "Təşəkkürlər! Məlumatlarınız qeyd edildi. "
-					+ "Əməkdaşlarımız sizinlə əlaqə saxlayacaq.\n\n" + "Başqa sualınız varmı?");
-		}
-
-		return createResponse(session, "Gözlənilməz vəziyyət");
+	    String currentStep = session.getCurrentStep();
+	    
+	    if ("awaiting_name".equals(currentStep)) {
+	        // Validate name
+	        if (message.trim().length() < 3) {
+	            return createResponse(session, 
+	                "Zəhmət olmasa düzgün ad və soyad daxil edin (minimum 3 simvol)");
+	        }
+	        
+	        session.putData("fullName", message.trim());
+	        session.setCurrentStep("awaiting_phone");
+	        return createResponse(session, 
+	            "Təşəkkürlər! İndi telefon nömrənizi yazın.\n" +
+	            "Format: +994XXXXXXXXX");
+	    }
+	    
+	    if ("awaiting_phone".equals(currentStep)) {
+	        // Validate phone format
+	        String phone = message.trim();
+	        if (!phone.matches("^\\+994[0-9]{9}$")) {
+	            return createResponse(session, 
+	                "❌ Telefon düzgün formatda deyil.\n" +
+	                "Düzgün format: +994XXXXXXXXX\n" +
+	                "Məsələn: +994501234567");
+	        }
+	        
+	        // Check if phone already exists
+	        if (leadService.phoneExists(phone)) {
+	            logger.warn("Duplicate phone number attempted: {}", maskPhone(phone));
+	            return createResponse(session,
+	                "⚠️ Bu telefon nömrəsi artıq qeydiyyatdan keçib.\n" +
+	                "Əməkdaşlarımız sizinlə əlaqə saxlayacaq.\n\n" +
+	                "Başqa sualınız varmı?");
+	        }
+	        
+	        session.putData("phone", phone);
+	        session.setCurrentStep("awaiting_email");
+	        return createResponse(session, 
+	            "Email ünvanınızı yazın\n" +
+	            "(və ya keçmək üçün 'yox' yazın)");
+	    }
+	    
+	    if ("awaiting_email".equals(currentStep)) {
+	        String email = null;
+	        
+	        // Check if user wants to skip
+	        if (!message.trim().equalsIgnoreCase("yox")) {
+	            // Validate email format
+	            if (!message.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) {
+	                return createResponse(session,
+	                    "❌ Email formatı düzgün deyil.\n" +
+	                    "Məsələn: example@gmail.com\n\n" +
+	                    "Və ya keçmək üçün 'yox' yazın");
+	            }
+	            email = message.trim();
+	        }
+	        
+	        session.putData("email", email);
+	        session.setCurrentStep("awaiting_message");
+	        return createResponse(session,
+	            "Son addım! Qısa mesajınızı yazın:\n" +
+	            "(Hansı təlim barədə məlumat almaq istəyirsiniz?)");
+	    }
+	    
+	    if ("awaiting_message".equals(currentStep)) {
+	        String userMessage = message.trim();
+	        
+	        // Save lead to database
+	        try {
+	            String fullName = session.getData("fullName");
+	            String phone = session.getData("phone");
+	            String email = session.getData("email");
+	            
+	            leadService.saveLead(fullName, phone, email, userMessage);
+	            
+	            logger.info("Lead saved successfully - Name: {}, Phone: {}", 
+	                       fullName, maskPhone(phone));
+	            
+	            // Clear mode and collected data
+	            session.setCurrentMode(null);
+	            session.setCurrentStep(null);
+	            session.clearData();
+	            
+	            return createResponse(session,
+	                "✅ Təşəkkürlər! Məlumatlarınız uğurla qeyd edildi.\n\n" +
+	                "📞 Əməkdaşlarımız tezliklə sizinlə əlaqə saxlayacaq.\n" +
+	                "📧 Email: info@dsa.az\n" +
+	                "☎️ Tel: 051 341 43 40\n\n" +
+	                "Başqa sualınız varmı?");
+	                
+	        } catch (Exception e) {
+	            logger.error("Failed to save lead: {}", e.getMessage(), e);
+	            
+	            // Don't clear session data in case of error
+	            return createResponse(session,
+	                "⚠️ Texniki problem yarandı. Zəhmət olmasa bir daha cəhd edin " +
+	                "və ya birbaşa əlaqə saxlayın: 051 341 43 40");
+	        }
+	    }
+	    
+	    // Unexpected step
+	    logger.warn("Unexpected step in contact mode: {}", currentStep);
+	    session.setCurrentMode(null);
+	    session.setCurrentStep(null);
+	    return createResponse(session, 
+	        "Üzr istəyirik, texniki problem yarandı. Yenidən başlayın.");
 	}
+
+	// Helper method (add to the class if not exists)
+	private String maskPhone(String phone) {
+	    if (phone == null || phone.length() < 8) return "****";
+	    return phone.substring(0, 4) + "****" + phone.substring(phone.length() - 2);
+	}	
+	
 
 	private ChatResponse handleConsultMode(SessionData session, String message) {
 		// TODO: Step 3.2 - Full implementation
