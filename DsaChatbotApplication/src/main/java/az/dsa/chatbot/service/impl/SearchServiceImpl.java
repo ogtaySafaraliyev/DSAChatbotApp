@@ -615,4 +615,134 @@ public class SearchServiceImpl implements SearchService {
 		return null;
 	}
 
+	/**
+	 * Detect query type from user message Returns: TRAINING, TRAINER, GRADUATE,
+	 * BOOTCAMP, PRICE, SCHEDULE, GENERAL
+	 */
+	public String detectQueryType(String query) {
+		if (query == null)
+			return "GENERAL";
+
+		String lower = query.toLowerCase();
+
+		// Trainer query
+		if (lower.contains("təlimçi") || lower.contains("müəllim") || lower.contains("trainer")
+				|| lower.contains("kim tədris")) {
+			return "TRAINER";
+		}
+
+		// Graduate query
+		if (lower.contains("məzun") || lower.contains("graduate") || lower.contains("uğur")
+				|| lower.contains("iş tapmış")) {
+			return "GRADUATE";
+		}
+
+		// Bootcamp structure
+		if (lower.contains("bootcamp") || lower.contains("struktur") || lower.contains("necə işləyir")
+				|| lower.contains("proqram")) {
+			return "BOOTCAMP";
+		}
+
+		// Price query
+		if (lower.contains("qiymət") || lower.contains("nə qədər") || lower.contains("pul") || lower.contains("azn")
+				|| lower.contains("manat")) {
+			return "PRICE";
+		}
+
+		// Schedule query
+		if (lower.contains("tarix") || lower.contains("vaxt") || lower.contains("nə vaxt") || lower.contains("başlayır")
+				|| lower.contains("cədvəl") || lower.contains("saat")) {
+			return "SCHEDULE";
+		}
+
+		// Training query (default)
+		return "TRAINING";
+	}
+
+	/**
+	 * Search trainings with detailed information
+	 */
+	public List<SearchResult> searchTrainingsDetailed(String query) {
+		List<SearchResult> trainingResults = searchTraining(query);
+
+		// Enrich with Text details
+		for (SearchResult result : trainingResults) {
+			if (result.getRawData() instanceof Training) {
+				Training training = (Training) result.getRawData();
+				Text text = trainingTextMapper.getTextForTraining(training);
+
+				if (text != null) {
+					// Store both
+					Map<String, Object> enriched = new HashMap<>();
+					enriched.put("training", training);
+					enriched.put("text", text);
+					result.setRawData(enriched);
+
+					// Update content with more details
+					StringBuilder content = new StringBuilder();
+					if (text.getDescription() != null) {
+						content.append(text.getDescription()).append("\n");
+					}
+					if (text.getMoney() != null) {
+						content.append("Qiymət: ").append(text.getMoney()).append(" AZN");
+					}
+					result.setContent(content.toString());
+				}
+			}
+		}
+
+		return trainingResults;
+	}
+
+	/**
+	 * Get bootcamp structure information
+	 */
+	public String getBootcampStructure() {
+		return "🎯 **Bootcamp Strukturu:**\n\n" + "DSA Academy-də bootcamplar aşağıdakı kimi təşkil olunur:\n\n"
+				+ "📚 **1. Data Analytics Bootcamp**\n" + "   • Excel ilə Data Analytics\n"
+				+ "   • SQL və Data Management\n" + "   • Tableau Business Intelligence\n" + "   • Power BI\n\n"
+				+ "🤖 **2. Machine Learning Bootcamp**\n" + "   • Python Programming\n"
+				+ "   • Machine Learning Fundamentals\n" + "   • Deep Learning və AI\n\n"
+				+ "💻 **3. Data Engineering Bootcamp**\n" + "   • SQL Advanced\n" + "   • Database Design\n"
+				+ "   • Big Data Technologies\n\n" + "⏱️ **Müddət:** Hər bootcamp 3-6 ay\n"
+				+ "💰 **Qiymət:** 250 AZN - 2000 AZN\n"
+				+ "📜 **Sertifikat:** Hər bootcamp üçün beynəlxalq sertifikat\n\n"
+				+ "📞 Ətraflı məlumat: 051 341 43 40";
+	}
+
+	/**
+	 * Format price information
+	 */
+	public String formatPriceInfo(List<SearchResult> results) {
+		if (results == null || results.isEmpty()) {
+			return "💰 **Qiymət məlumatları:**\n\n" + "Təlimlərimizin qiymətləri 250 AZN - 2000 AZN aralığındadır.\n\n"
+					+ "📞 Konkret təlim qiymətləri üçün: 051 341 43 40";
+		}
+
+		StringBuilder response = new StringBuilder();
+		response.append("💰 **Qiymət məlumatları:**\n\n");
+
+		for (SearchResult result : results) {
+			Object rawData = result.getRawData();
+			Integer price = null;
+
+			if (rawData instanceof Text) {
+				price = ((Text) rawData).getMoney();
+			} else if (rawData instanceof Map) {
+				Map<String, Object> data = (Map<String, Object>) rawData;
+				Text text = (Text) data.get("text");
+				if (text != null) {
+					price = text.getMoney();
+				}
+			}
+
+			if (price != null) {
+				response.append(String.format("• %s - %d AZN\n", result.getTitle(), price));
+			}
+		}
+
+		response.append("\n📞 Ətraflı məlumat: 051 341 43 40");
+		return response.toString();
+	}
+
 }

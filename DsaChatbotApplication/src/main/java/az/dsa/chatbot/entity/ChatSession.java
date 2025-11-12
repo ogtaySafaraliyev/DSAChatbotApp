@@ -40,4 +40,41 @@ public class ChatSession {
     
     @Column(name = "expires_at")
     private LocalDateTime expiresAt;
+    
+    
+ // NEW: Rate limiting fields
+    @Column(name = "message_count")
+    private Integer messageCount = 0;
+    
+    @Column(name = "last_message_time")
+    private LocalDateTime lastMessageTime;
+    
+    // NEW: Session metadata
+    @Column(name = "ip_address", length = 50)
+    private String ipAddress;
+    
+    @Column(name = "user_agent", length = 500)
+    private String userAgent;
+    
+    @Column(name = "is_blocked")
+    private Boolean isBlocked = false;
+    
+    // Helper methods
+    public void incrementMessageCount() {
+        this.messageCount = (this.messageCount == null ? 0 : this.messageCount) + 1;
+        this.lastMessageTime = LocalDateTime.now();
+    }
+    
+    public void resetMessageCount() {
+        this.messageCount = 0;
+    }
+    
+    public boolean isRateLimitExceeded(int maxMessages, int timeWindowMinutes) {
+        if (messageCount == null || lastMessageTime == null) {
+            return false;
+        }
+        
+        LocalDateTime windowStart = LocalDateTime.now().minusMinutes(timeWindowMinutes);
+        return messageCount >= maxMessages && lastMessageTime.isAfter(windowStart);
+    }
 }

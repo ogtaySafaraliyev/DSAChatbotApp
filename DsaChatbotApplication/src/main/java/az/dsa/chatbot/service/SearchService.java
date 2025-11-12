@@ -69,4 +69,14 @@ public interface SearchService {
     // my addition
     String detectCategory(String query);
     
+    // missing methods which added after some observations 
+    String detectQueryType(String query);
+    
+    List<SearchResult> searchTrainingsDetailed(String query);
+    
+    String getBootcampStructure();
+    
+    String formatPriceInfo(List<SearchResult> results);
+    
+    
 }

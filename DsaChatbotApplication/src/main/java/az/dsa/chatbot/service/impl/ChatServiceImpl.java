@@ -6,17 +6,21 @@ import az.dsa.chatbot.dto.SearchFilters;
 import az.dsa.chatbot.dto.SearchResult;
 import az.dsa.chatbot.dto.SessionData;
 import az.dsa.chatbot.entity.Faq;
+import az.dsa.chatbot.entity.Graduate;
 import az.dsa.chatbot.entity.Text;
+import az.dsa.chatbot.entity.Trainer;
 import az.dsa.chatbot.entity.Training;
 import az.dsa.chatbot.model.Intent;
 import az.dsa.chatbot.model.Mode;
 import az.dsa.chatbot.service.ChatService;
+import az.dsa.chatbot.service.GraduateService;
 import az.dsa.chatbot.service.IntentService;
 import az.dsa.chatbot.service.LeadService;
 import az.dsa.chatbot.service.OpenAIService;
 import az.dsa.chatbot.service.RecommendationService;
 import az.dsa.chatbot.service.SearchService;
 import az.dsa.chatbot.service.SessionService;
+import az.dsa.chatbot.service.TrainerService;
 import az.dsa.chatbot.util.TrainingTextMapper;
 
 import org.slf4j.Logger;
@@ -55,7 +59,22 @@ public class ChatServiceImpl implements ChatService {
 	
 	@Autowired
 	private RecommendationService recommendationService;
+	
+	// my false addition check it later important ****************************************************
+	// ***********************************************************************************************
+	// ***********************************************************************************************
+	// ***********************************************************************************************
+	// ***********************************************************************************************
+	// very important ********************************************************************************
+	@Autowired(required = false)
+	private TrainerService trainerService;
 
+	@Autowired(required = false)
+	private GraduateService graduateService;
+	
+	// ***********************************************************************************************
+	// ***********************************************************************************************
+	
 	// TODO: Will inject these in next steps
 	// @Autowired
 	// private OpenAIService openAIService;
@@ -221,74 +240,34 @@ public class ChatServiceImpl implements ChatService {
 
 	// ******************
 
-	private ChatResponse handleQueryIntent(SessionData session, String query) {
-		logger.info("Handling query: {}", query);
-
-		// Detect if user is asking for categories/list
-		if (isListRequest(query)) {
-			return handleListRequest(session, query);
-		}
-
-		// Detect if price query
-		Integer[] priceRange = extractPriceRange(query);
-		if (priceRange != null) {
-			return handlePriceQuery(session, priceRange[0], priceRange[1]);
-		}
-
-		// Detect category
-		String category = searchService.detectCategory(query);
-		if (category != null) {
-			logger.debug("Detected category: {}", category);
-		}
-
-		// Prepare filters
-		SearchFilters filters = new SearchFilters();
-		filters.setActiveOnly(true);
-		if (category != null) {
-			filters.setCategory(category);
-		}
-
-		// Search with filters
-		List<SearchResult> results = searchService.searchWithFilters(query, filters);
-
-		// Fallback to fuzzy search if no results
-		if (results.isEmpty()) {
-			results = searchService.fuzzySearch(query, 3);
-		}
-
-		if (results.isEmpty()) {
-			return createResponse(session, "Bu məlumatı əməkdaşlarımızdan öyrənə bilərik. "
-					+ "Əlaqə: 051 341 43 40 və ya info@dsa.az\n\n" + "Başqa sualınız varmı?");
-		}
-
-		// Log search results for debugging
-		for (SearchResult result : results) {
-			logger.debug("Result: {} - {} (score: {})", result.getSource(), result.getTitle(),
-					result.getRelevanceScore());
-		}
-
-		// Get the best result
-		SearchResult bestResult = results.get(0);
-
-		// Enrich result with Training-Text relationship
-		enrichSearchResult(bestResult);
-
-		// Format response
-		String formattedResponse = formatSearchResultResponse(bestResult, query);
-
-		// Add additional results if available
-		if (results.size() > 1) {
-			formattedResponse += "\n\n📚 Digər uyğun təlimlər:";
-			for (int i = 1; i < Math.min(results.size(), 3); i++) {
-				SearchResult result = results.get(i);
-				formattedResponse += String.format("\n• %s", result.getTitle());
-			}
-			formattedResponse += "\n\nDaha ətraflı məlumat üçün konkret təlim adını yaza bilərsiniz.";
-		}
-
-		return createResponse(session, formattedResponse);
+	private ChatResponse handleQueryIntent(SessionData session, String normalizedText) {
+	    logger.info("Handling query: {}", normalizedText);
+	    
+	    // Detect query type
+	    String queryType = searchService.detectQueryType(normalizedText);
+	    logger.debug("Query type detected: {}", queryType);
+	    
+	    switch (queryType) {
+	        case "TRAINER":
+	            return handleTrainerQuery(session, normalizedText);
+	            
+	        case "GRADUATE":
+	            return handleGraduateQuery(session, normalizedText);
+	            
+	        case "BOOTCAMP":
+	            return handleBootcampQuery(session);
+	            
+	        case "PRICE":
+	            return handlePriceQuery(session, normalizedText);
+	            
+	        case "SCHEDULE":
+	            return handleScheduleQuery(session, normalizedText);
+	            
+	        default:
+	            return handleTrainingQuery(session, normalizedText);
+	    }
 	}
-
+	
 	private boolean isListRequest(String query) {
 		String lower = query.toLowerCase();
 		return lower.contains("hansı təlimlər") || lower.contains("bütün təlimlər") || lower.contains("təlimləriniz")
@@ -788,4 +767,186 @@ public class ChatServiceImpl implements ChatService {
 			return "****";
 		return sessionId.substring(0, 4) + "****" + sessionId.substring(sessionId.length() - 4);
 	}
+	
+	
+	//addition new methods after phase  3.3
+	
+	// NEW: Handle trainer queries
+	private ChatResponse handleTrainerQuery(SessionData session, String query) {
+	    logger.debug("Handling trainer query");
+	    
+	    // Extract trainer name if mentioned
+	    String keyword = extractKeyword(query);
+	    
+	    List<Trainer> trainers = trainerService.searchTrainers(keyword);
+	    
+	    if (trainers.isEmpty()) {
+	        trainers = trainerService.getAllTrainers();
+	    }
+	    
+	    String response = trainerService.formatTrainerInfo(trainers);
+	    return createResponse(session, response);
+	}
+
+	// NEW: Handle graduate queries
+	private ChatResponse handleGraduateQuery(SessionData session, String query) {
+	    logger.debug("Handling graduate query");
+	    
+	    String keyword = extractKeyword(query);
+	    
+	    List<Graduate> graduates = graduateService.searchGraduates(keyword);
+	    
+	    if (graduates.isEmpty()) {
+	        graduates = graduateService.getRandomSuccessStories(6);
+	    }
+	    
+	    String response = graduateService.formatGraduateInfo(graduates);
+	    return createResponse(session, response);
+	}
+
+	// NEW: Handle bootcamp structure queries
+	private ChatResponse handleBootcampQuery(SessionData session) {
+	    logger.debug("Handling bootcamp structure query");
+	    
+	    String response = searchService.getBootcampStructure();
+	    return createResponse(session, response);
+	}
+
+	// NEW: Handle price queries
+	private ChatResponse handlePriceQuery(SessionData session, String query) {
+	    logger.debug("Handling price query");
+	    
+	    // Check if specific training mentioned
+	    String keyword = extractKeyword(query);
+	    
+	    // Extract price range if specified
+	    Integer[] priceRange = extractPriceRange(query);
+	    
+	    List<SearchResult> results;
+	    
+	    if (priceRange != null) {
+	        results = searchService.searchByPriceRange(priceRange[0], priceRange[1]);
+	    } else if (keyword != null && !keyword.isEmpty()) {
+	        results = searchService.searchTrainingsDetailed(keyword);
+	    } else {
+	        results = searchService.getPopularTrainings(10);
+	    }
+	    
+	    String response = searchService.formatPriceInfo(results);
+	    return createResponse(session, response);
+	}
+
+	// NEW: Handle schedule queries
+	private ChatResponse handleScheduleQuery(SessionData session, String query) {
+	    logger.debug("Handling schedule query");
+	    
+	    String keyword = extractKeyword(query);
+	    
+	    List<SearchResult> results = searchService.searchTrainingsDetailed(keyword);
+	    
+	    if (results.isEmpty()) {
+	        return createResponse(session,
+	            "📅 **Təlim cədvəlləri:**\n\n" +
+	            "Təlimlər həftədə 2-3 dəfə keçirilir.\n" +
+	            "Həm həftə içi, həm də həftə sonu qruplarımız var.\n\n" +
+	            "📞 Konkret təlim cədvəli üçün: 051 341 43 40\n" +
+	            "📧 Email: info@dsa.az");
+	    }
+	    
+	    // Format response with training info
+	    StringBuilder response = new StringBuilder();
+	    response.append("📅 **Təlim cədvəlləri:**\n\n");
+	    
+	    for (int i = 0; i < Math.min(results.size(), 3); i++) {
+	        SearchResult result = results.get(i);
+	        response.append(String.format("📚 %s\n", result.getTitle()));
+	        response.append("   ⏰ Həftədə 2-3 dəfə, 2-3 saat\n");
+	        response.append("   📍 Online və ya офлайн formatda\n\n");
+	    }
+	    
+	    response.append("📞 Dəqiq tarix və saat üçün: 051 341 43 40");
+	    
+	    return createResponse(session, response.toString());
+	}
+
+	// NEW: Handle general training queries (existing logic enhanced)
+	private ChatResponse handleTrainingQuery(SessionData session, String query) {
+	    logger.debug("Handling training query");
+	    
+	    // Detect if user is asking for categories/list
+	    if (isListRequest(query)) {
+	        return handleListRequest(session, query);
+	    }
+	    
+	    // Detect category
+	    String category = searchService.detectCategory(query);
+	    if (category != null) {
+	        logger.debug("Detected category: {}", category);
+	    }
+	    
+	    // Prepare filters
+	    SearchFilters filters = new SearchFilters();
+	    filters.setActiveOnly(true);
+	    if (category != null) {
+	        filters.setCategory(category);
+	    }
+	    
+	    // Search with filters
+	    List<SearchResult> results = searchService.searchWithFilters(query, filters);
+	    
+	    // Fallback to fuzzy search if no results
+	    if (results.isEmpty()) {
+	        results = searchService.fuzzySearch(query, 3);
+	    }
+	    
+	    if (results.isEmpty()) {
+	        return createResponse(session,
+	            "Bu məlumatı əməkdaşlarımızdan öyrənə bilərik.\n\n" +
+	            "📞 Əlaqə: 051 341 43 40\n" +
+	            "📧 Email: info@dsa.az\n\n" +
+	            "Başqa sualınız varmı?");
+	    }
+	    
+	    // Get the best result
+	    SearchResult bestResult = results.get(0);
+	    
+	    // Enrich result
+	    enrichSearchResult(bestResult);
+	    
+	    // Format response
+	    String formattedResponse = formatSearchResultResponse(bestResult, query);
+	    
+	    // Add additional results if available
+	    if (results.size() > 1) {
+	        formattedResponse += "\n\n📚 Digər uyğun təlimlər:";
+	        for (int i = 1; i < Math.min(results.size(), 3); i++) {
+	            SearchResult result = results.get(i);
+	            formattedResponse += String.format("\n• %s", result.getTitle());
+	        }
+	        formattedResponse += "\n\nDaha ətraflı məlumat üçün konkret təlim adını yaza bilərsiniz.";
+	    }
+	    
+	    return createResponse(session, formattedResponse);
+	}
+
+	// Helper method to extract main keyword from query
+	private String extractKeyword(String query) {
+	    if (query == null) return "";
+	    
+	    // Remove common question words
+	    String cleaned = query.toLowerCase()
+	        .replaceAll("\\b(hansı|nə|kim|necə|haqqında|üçün|barədə|məlumat)\\b", "")
+	        .trim();
+	    
+	    // Get main words (skip short words)
+	    String[] words = cleaned.split("\\s+");
+	    for (String word : words) {
+	        if (word.length() > 3) {
+	            return word;
+	        }
+	    }
+	    
+	    return cleaned;
+	}
+	
 }
