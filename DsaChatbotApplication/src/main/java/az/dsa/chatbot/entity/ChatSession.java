@@ -19,10 +19,10 @@ public class ChatSession {
     @Column(length = 255)
     private String id;  // UUID
     
-    @Column(name = "user_data", columnDefinition = "JSONB")
+    @Column(name = "user_data", columnDefinition = "TEXT")
     private String userData;  // JSON string of collected user data
     
-    @Column(name = "conversation_history", columnDefinition = "JSONB")
+    @Column(name = "conversation_history", columnDefinition = "TEXT")
     private String conversationHistory;  // JSON array of messages
     
     @Column(name = "current_mode", length = 50)

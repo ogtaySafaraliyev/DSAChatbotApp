@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DSA Chatbot</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .chat-container {
+            width: 90%;
+            max-width: 500px;
+            height: 600px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .chat-header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .chat-header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: #f5f5f5;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            display: flex;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message.bot {
+            justify-content: flex-start;
+        }
+
+        .message-bubble {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+        }
+
+        .message.user .message-bubble {
+            background: #667eea;
+            color: white;
+        }
+
+        .message.bot .message-bubble {
+            background: white;
+            color: #333;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .message-time {
+            font-size: 11px;
+            opacity: 0.6;
+            margin-top: 5px;
+        }
+
+        .typing-indicator {
+            display: none;
+            padding: 10px;
+        }
+
+        .typing-indicator.active {
+            display: block;
+        }
+
+        .typing-indicator span {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: #999;
+            border-radius: 50%;
+            margin: 0 2px;
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-indicator span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-indicator span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-10px); }
+        }
+
+        .chat-input {
+            display: flex;
+            padding: 15px;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .chat-input input {
+            flex: 1;
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 25px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .chat-input input:focus {
+            border-color: #667eea;
+        }
+
+        .chat-input button {
+            margin-left: 10px;
+            padding: 12px 25px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+
+        .chat-input button:hover {
+            background: #5568d3;
+        }
+
+        .chat-input button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .error-message {
+            background: #ff4444;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            font-size: 13px;
+        }
+
+        .quick-actions {
+            display: flex;
+            gap: 10px;
+            padding: 10px 20px;
+            overflow-x: auto;
+        }
+
+        .quick-action-btn {
+            padding: 8px 15px;
+            background: white;
+            border: 1px solid #667eea;
+            color: #667eea;
+            border-radius: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.3s;
+        }
+
+        .quick-action-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h1>🎓 DSA Chatbot</h1>
+            <p>Data Science Academy | Virtual Assistant</p>
+        </div>
+
+        <div class="quick-actions">
+            <button class="quick-action-btn" onclick="sendQuickMessage('təlimlər haqqında')">📚 Təlimlər</button>
+            <button class="quick-action-btn" onclick="sendQuickMessage('qiymətlər')">💰 Qiymətlər</button>
+            <button class="quick-action-btn" onclick="sendQuickMessage('əlaqə')">📞 Əlaqə</button>
+            <button class="quick-action-btn" onclick="sendQuickMessage('məsləhət')">💡 Məsləhət</button>
+        </div>
+
+        <div id="error-container"></div>
+
+        <div class="chat-messages" id="chatMessages">
+            <div class="message bot">
+                <div class="message-bubble">
+                    Salam! Data Science Academy-ə xoş gəlmisiniz! 👋<br><br>
+                    Sizə necə kömək edə bilərəm?<br><br>
+                    • Təlimlərimiz haqqında məlumat<br>
+                    • Qeydiyyat və konsultasiya<br>
+                    • Əlaqə
+                </div>
+            </div>
+        </div>
+
+        <div class="typing-indicator" id="typingIndicator">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+
+        <div class="chat-input">
+            <input 
+                type="text" 
+                id="messageInput" 
+                placeholder="Mesajınızı yazın..."
+                onkeypress="handleKeyPress(event)"
+            >
+            <button id="sendButton" onclick="sendMessage()">Göndər</button>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const API_URL = 'http://localhost:8081/api/chat/message';
+        const API_KEY = ''; // Optional: Add your API key if authentication is enabled
+        
+        // Generate unique session ID
+        let sessionId = localStorage.getItem('dsa_chat_session_id');
+        if (!sessionId) {
+            sessionId = 'web-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('dsa_chat_session_id', sessionId);
+        }
+
+        // DOM elements
+        const chatMessages = document.getElementById('chatMessages');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const typingIndicator = document.getElementById('typingIndicator');
+        const errorContainer = document.getElementById('error-container');
+
+        // Send message function
+        async function sendMessage() {
+            const message = messageInput.value.trim();
+            
+            if (!message) return;
+
+            // Disable input
+            messageInput.disabled = true;
+            sendButton.disabled = true;
+
+            // Add user message to chat
+            addMessage(message, 'user');
+            messageInput.value = '';
+
+            // Show typing indicator
+            typingIndicator.classList.add('active');
+
+            try {
+                // Send to API
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(API_KEY && { 'X-API-Key': API_KEY })
+                    },
+                    body: JSON.stringify({
+                        sessionId: sessionId,
+                        message: message
+                    })
+                });
+
+                // Hide typing indicator
+                typingIndicator.classList.remove('active');
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Texniki problem yarandı');
+                }
+
+                const data = await response.json();
+                
+                // Add bot response
+                addMessage(data.reply, 'bot');
+                clearError();
+
+            } catch (error) {
+                console.error('Error:', error);
+                typingIndicator.classList.remove('active');
+                
+                showError(error.message || 'Texniki problem yarandı. Zəhmət olmasa yenidən cəhd edin.');
+                
+                // Add error message to chat
+                addMessage(
+                    'Üzr istəyirik, texniki problem yarandı. 😔\n\n' +
+                    'Əlaqə: 051 341 43 40\n' +
+                    'Email: info@dsa.az',
+                    'bot'
+                );
+            } finally {
+                // Re-enable input
+                messageInput.disabled = false;
+                sendButton.disabled = false;
+                messageInput.focus();
+            }
+        }
+
+        // Add message to chat
+        function addMessage(text, sender) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
+            
+            const bubble = document.createElement('div');
+            bubble.className = 'message-bubble';
+            bubble.textContent = text;
+            
+            messageDiv.appendChild(bubble);
+            chatMessages.appendChild(messageDiv);
+            
+            // Scroll to bottom
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // Quick message buttons
+        function sendQuickMessage(message) {
+            messageInput.value = message;
+            sendMessage();
+        }
+
+        // Handle Enter key
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        // Show error
+        function showError(message) {
+            errorContainer.innerHTML = `<div class="error-message">${message}</div>`;
+        }
+
+        // Clear error
+        function clearError() {
+            errorContainer.innerHTML = '';
+        }
+
+        // Focus on input on load
+        window.addEventListener('load', () => {
+            messageInput.focus();
+        });
+    </script>
+</body>
+</html>
